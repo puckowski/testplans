@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { TestPlan } from '../../models/test-plan.model';
 import { TestPlanService } from '../../services/test-plan.service';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-test-plan-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="container">
       <div class="header">
@@ -17,8 +18,18 @@ import { TestPlanService } from '../../services/test-plan.service';
         </button>
       </div>
 
-      <div class="grid" *ngIf="testPlans.length > 0">
-        <div class="card" *ngFor="let testPlan of testPlans">
+      <div class="search-row">
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (input)="filterTestPlans()"
+          placeholder="Filter by tag"
+          class="form-control"
+        />
+      </div>
+
+      <div class="grid" *ngIf="filteredTestPlans.length > 0">
+        <div class="card" *ngFor="let testPlan of filteredTestPlans">
           <div class="card-header">
             <h3>{{ testPlan.name }}</h3>
             <span class="status-badge" [class]="'status-' + testPlan.status.toLowerCase()">
@@ -55,6 +66,8 @@ import { TestPlanService } from '../../services/test-plan.service';
 })
 export class TestPlanListComponent implements OnInit {
   testPlans: TestPlan[] = [];
+  filteredTestPlans: TestPlan[] = [];
+  searchTerm: string = '';
 
   constructor(
     private testPlanService: TestPlanService,
@@ -65,9 +78,23 @@ export class TestPlanListComponent implements OnInit {
     this.loadTestPlans();
   }
 
+  filterTestPlans() {
+    const term = this.searchTerm.trim().toLowerCase();
+    if (!term) {
+      this.filteredTestPlans = this.testPlans;
+      return;
+    }
+    this.filteredTestPlans = this.testPlans.filter(plan =>
+      plan.tagList && plan.tagList?.some(tag => tag.tag && tag.tag.toLowerCase().includes(term))
+    );
+  }
+
   loadTestPlans() {
     this.testPlanService.getTestPlans().subscribe({
-      next: (plans) => this.testPlans = plans,
+      next: (plans) => {
+        this.testPlans = plans;
+        this.filterTestPlans();
+      },
       error: (error) => console.error('Error loading test plans:', error)
     });
   }

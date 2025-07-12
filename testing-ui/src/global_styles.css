@@ -614,3 +614,24 @@ h4 {
 .form {
   animation: fadeIn 0.3s ease-out;
 }
+
+.search-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.search-row input[type="text"] {
+  width: 250px;
+  padding: 0.5rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 1.5rem;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.search-row input[type="text"]:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px #e3f0fc;
+}
