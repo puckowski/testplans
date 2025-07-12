@@ -101,47 +101,57 @@ public class TestCaseController {
     @PostMapping("/testplans")
     public TestPlanDTO createTestPlan(@RequestBody TestPlanDTO dto) throws SQLException {
         String sql = "INSERT INTO test_plan (name, description, status) VALUES (?, ?, ?)";
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, dto.name());
-            ps.setString(2, dto.description());
-            ps.setString(3, dto.status());
-            ps.executeUpdate();
+        try (Connection conn = dataSource.getConnection()) {
+            conn.setAutoCommit(false); // Begin transaction
 
-            try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) {
-                    final TestPlanDTO planWithoutTags = getTestPlan(keys.getLong(1));
+            try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, dto.name());
+                ps.setString(2, dto.description());
+                ps.setString(3, dto.status());
+                ps.executeUpdate();
 
-                    updateTestPlanTags(planWithoutTags.id(), dto);
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (keys.next()) {
+                        Long planId = keys.getLong(1);
 
-                    final TestPlanDTO plan = getTestPlan(keys.getLong(1));
+                        // Insert tags in the same transaction/connection
+                        updateTestPlanTagsTransactional(conn, planId, dto);
 
-                    return plan;
-                } else {
-                    throw new SQLException("Failed to retrieve ID");
+                        conn.commit(); // Commit if everything succeeds
+
+                        return getTestPlan(planId);
+                    } else {
+                        conn.rollback();
+                        throw new SQLException("Failed to retrieve ID");
+                    }
                 }
+            } catch (Exception ex) {
+                conn.rollback(); // Rollback on error
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true); // Always restore for pooled connections
             }
         }
     }
 
-    private void updateTestPlanTags(final Long id, final TestPlanDTO dto) throws SQLException {
-        if (dto.tagList() == null || dto.tagList().isEmpty()) {
-            return;
+    private void updateTestPlanTagsTransactional(Connection conn, final Long id, final TestPlanDTO dto) throws SQLException {
+        // Always delete, even if new list is empty, to remove old tags
+        String deleteSql = "DELETE FROM test_plan_tags WHERE test_plan_id = ?";
+        String insertSql = "INSERT INTO test_plan_tags (test_plan_id, tag) VALUES (?, ?)";
+
+        try (PreparedStatement deletePs = conn.prepareStatement(deleteSql)) {
+            deletePs.setLong(1, id);
+            deletePs.executeUpdate();
         }
 
-        String sql = "DELETE FROM test_plan_tags WHERE test_plan_id = ?";
-        try (Connection tagConn = dataSource.getConnection();
-             PreparedStatement tagPs = tagConn.prepareStatement(sql)) {
-            tagPs.setLong(1, id);
-            tagPs.executeUpdate();
-            sql = "INSERT INTO test_plan_tags (test_plan_id, tag) VALUES (?, ?)";
-            try (Connection insertTagConn = dataSource.getConnection();
-                 PreparedStatement insertTagPs = insertTagConn.prepareStatement(sql)) {
+        if (dto.tagList() != null && !dto.tagList().isEmpty()) {
+            try (PreparedStatement insertPs = conn.prepareStatement(insertSql)) {
                 for (TestTagDTO tag : dto.tagList()) {
-                    insertTagPs.setLong(1, id);
-                    insertTagPs.setString(2, tag.tag());
-                    insertTagPs.executeUpdate();
+                    insertPs.setLong(1, id);
+                    insertPs.setString(2, tag.tag());
+                    insertPs.addBatch();
                 }
+                insertPs.executeBatch();
             }
         }
     }
@@ -149,18 +159,32 @@ public class TestCaseController {
     @PutMapping("/testplans/{id}")
     public TestPlanDTO updateTestPlan(@PathVariable Long id, @RequestBody TestPlanDTO dto) throws SQLException {
         String sql = "UPDATE test_plan SET name = ?, description = ?, status = ? WHERE id = ?";
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, dto.name());
-            ps.setString(2, dto.description());
-            ps.setString(3, dto.status());
-            ps.setLong(4, id);
-            int updated = ps.executeUpdate();
+        try (Connection conn = dataSource.getConnection()) {
+            conn.setAutoCommit(false); // Begin transaction
 
-            updateTestPlanTags(id, dto);
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, dto.name());
+                ps.setString(2, dto.description());
+                ps.setString(3, dto.status());
+                ps.setLong(4, id);
+                int updated = ps.executeUpdate();
 
-            if (updated > 0) return getTestPlan(id);
-            else throw new NoSuchElementException("TestPlan not found");
+                // Pass the *same connection* to update tags
+                updateTestPlanTagsTransactional(conn, id, dto);
+
+                if (updated > 0) {
+                    conn.commit(); // Success! Commit transaction
+                    return getTestPlan(id); // Get fresh from DB for response
+                } else {
+                    conn.rollback();
+                    throw new NoSuchElementException("TestPlan not found");
+                }
+            } catch (Exception ex) {
+                conn.rollback(); // Rollback on any error
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true); // Restore autocommit for connection pool
+            }
         }
     }
 
