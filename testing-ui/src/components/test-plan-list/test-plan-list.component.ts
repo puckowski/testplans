@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { TestPlan } from '../../models/test-plan.model';
 import { TestPlanService } from '../../services/test-plan.service';
 import { FormsModule } from '@angular/forms';
+import { contrastingForeground, tagToColor } from '../../utils/color.util';
 
 @Component({
   selector: 'app-test-plan-list',
@@ -35,6 +36,18 @@ import { FormsModule } from '@angular/forms';
             <span class="status-badge" [class]="'status-' + testPlan.status.toLowerCase()">
               {{ testPlan.status }}
             </span>
+          </div>
+          <div class="info-item card-section">
+            <label>Tags</label>
+            <div class="single-column">
+              <div *ngFor="let tag of testPlan.tagList">
+                <div>
+                  <span class="tag-badge" [class]="'tag-' + tag?.tag?.toLowerCase()" [style.backgroundColor]="tagToColor(tag.tag)" [style.color]="contrastingForeground(tag.tag)">
+                    {{ tag.tag }}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="card-body">
             <p>{{ testPlan.description }}</p>
@@ -77,6 +90,9 @@ export class TestPlanListComponent implements OnInit {
   ngOnInit() {
     this.loadTestPlans();
   }
+
+  public tagToColor = tagToColor;
+  public contrastingForeground = contrastingForeground;
 
   filterTestPlans() {
     const term = this.searchTerm.trim().toLowerCase();

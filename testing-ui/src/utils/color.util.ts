@@ -9,6 +9,7 @@ export const hashString = (str: string) => {
 
 // Generate vibrant color from tag string
 export const tagToColor = (tag: string) => {
+    if (!tag) return '#ccc'; // Fallback for empty tags
     const hash = hashString(tag);
     // Vibrant HSL: Hue [0-360], Saturation [70-100]%, Lightness [50-60]%
     const hue = hash % 360;
@@ -45,6 +46,7 @@ function luminance([r, g, b]: [number, number, number]): number {
 
 // Choose black or white for best contrast
 export const contrastingForeground = (tag: string) => {
+    if (!tag) return '#000'; // Fallback for empty tags
     const hash = hashString(tag);
     const hue = hash % 360;
     const saturation = 80 + (hash % 20);

@@ -279,6 +279,16 @@ h4 {
   margin-top: 1rem;
 }
 
+.card-section {
+  padding: 1.5rem;
+}
+
+.single-column {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
 .info-item label {
   font-weight: 600;
   color: #64748b;

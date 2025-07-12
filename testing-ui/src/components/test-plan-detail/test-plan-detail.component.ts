@@ -41,9 +41,9 @@ import { contrastingForeground } from '../../utils/color.util';
               <p>{{ testPlan.description || 'No description provided' }}</p>
             </div>
           </div>
-           <div class="info-item">
+          <div class="info-item">
             <label>Tags</label>
-            <div class="info-grid">
+            <div class="single-column">
               <div *ngFor="let tag of testPlan.tagList">
                 <div>
                   <span class="tag-badge" [class]="'tag-' + tag.tag.toLowerCase()" [style.backgroundColor]="tagToColor(tag.tag)" [style.color]="contrastingForeground(tag.tag)">
