@@ -42,7 +42,7 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
             <div class="single-column">
               <div *ngFor="let tag of testPlan.tagList">
                 <div>
-                  <span class="tag-badge" [class]="'tag-' + tag?.tag?.toLowerCase()" [style.backgroundColor]="tagToColor(tag.tag)" [style.color]="contrastingForeground(tag.tag)">
+                  <span class="tag-badge" [class]="'tag-' + tag?.tag?.toLowerCase()" [style.backgroundColor]="tagToColor(tag.tag)" [style.color]="contrastingForeground(tag.tag)" (click)="setSearchPlanFilter(tag.tag)">
                     {{ tag.tag }}
                   </span>
                 </div>
@@ -105,6 +105,11 @@ export class TestPlanListComponent implements OnInit {
     );
   }
 
+  public setSearchPlanFilter(tag: string) {
+    this.searchTerm = tag;
+    this.filterTestPlans();
+  }
+  
   loadTestPlans() {
     this.testPlanService.getTestPlans().subscribe({
       next: (plans) => {
