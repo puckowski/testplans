@@ -206,13 +206,50 @@ public class TestCaseController {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, planId);
-            try (ResultSet rs = ps.executeQuery()) {
-                List<TestCaseDTO> list = new ArrayList<>();
-                while (rs.next()) {
-                    list.add(toTestCaseDTO(rs));
+            ResultSet rs = ps.executeQuery();
+
+            // Iterator that lazily loads from the ResultSet
+            Iterator<TestCaseDTO> iter = new Iterator<>() {
+                boolean nextCalled = false;
+                boolean hasNext = false;
+
+                private void advance() {
+                    if (!nextCalled) {
+                        try {
+                            hasNext = rs.next();
+                            nextCalled = true;
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
                 }
-                return list;
-            }
+
+                @Override
+                public boolean hasNext() {
+                    advance();
+                    return hasNext;
+                }
+
+                @Override
+                public TestCaseDTO next() {
+                    advance();
+                    if (!hasNext) throw new NoSuchElementException();
+                    nextCalled = false; // For the next call
+                    try {
+                        return toTestCaseDTO(rs);
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+
+            var spliterator = Spliterators.spliteratorUnknownSize(iter, Spliterator.ORDERED);
+            var stream = StreamSupport.stream(spliterator, false);
+
+            // Use Gatherers to batch in fixed-size windows if you want, or flatMap to flatten
+            return stream.gather(Gatherers.windowFixed(50)) // Use 50 per window for demo
+                    .flatMap(List::stream)
+                    .toList();
         }
     }
 

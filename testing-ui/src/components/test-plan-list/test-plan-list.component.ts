@@ -27,6 +27,9 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
           placeholder="Filter by tag"
           class="form-control"
         />
+        <button class="btn btn-secondary" (click)="searchTerm = ''; filterTestPlans()">
+          Clear Filter
+        </button>
       </div>
 
       <div class="grid" *ngIf="filteredTestPlans.length > 0">
@@ -109,7 +112,7 @@ export class TestPlanListComponent implements OnInit {
     this.searchTerm = tag;
     this.filterTestPlans();
   }
-  
+
   loadTestPlans() {
     this.testPlanService.getTestPlans().subscribe({
       next: (plans) => {
