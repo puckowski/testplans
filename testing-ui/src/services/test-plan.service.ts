@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { TestPlan, TestCase } from '../models/test-plan.model';
+import { map, Observable } from 'rxjs';
+import { TestPlan, TestCase, TestPlanCount } from '../models/test-plan.model';
 
 @Injectable({
   providedIn: 'root'
@@ -9,11 +9,17 @@ import { TestPlan, TestCase } from '../models/test-plan.model';
 export class TestPlanService {
   private apiUrl = 'http://localhost:8080/api'; // Adjust this to your API base URL
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   // Test Plan operations
-  getTestPlans(): Observable<TestPlan[]> {
-    return this.http.get<TestPlan[]>(`${this.apiUrl}/testplans`);
+  getTestPlans(page = 0, size = 20): Observable<TestPlan[]> {
+    return this.http.get<TestPlan[]>(`${this.apiUrl}/testplans?page=${page}&size=${size}`);
+  }
+
+  getTestPlanCount(): Observable<number> {
+    return this.http.get<TestPlanCount>(`${this.apiUrl}/testplans/count`).pipe(
+      map(res => res.count)
+    );
   }
 
   getTestPlan(id: number): Observable<TestPlan> {

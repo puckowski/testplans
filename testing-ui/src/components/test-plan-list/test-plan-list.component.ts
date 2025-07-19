@@ -69,6 +69,14 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
         </div>
       </div>
 
+      <div class="pagination" *ngIf="totalPages > 1">
+        <button class="btn btn-secondary" (click)="onPageChange(currentPage - 1)" [disabled]="currentPage === 0">Prev</button>
+        <span *ngFor="let page of [].constructor(totalPages); let i = index">
+          <button class="btn btn-secondary" (click)="onPageChange(i)" [class.active]="i === currentPage">{{ i + 1 }}</button>
+        </span>
+        <button class="btn btn-secondary" (click)="onPageChange(currentPage + 1)" [disabled]="currentPage === totalPages - 1">Next</button>
+      </div>
+
       <div class="empty-state" *ngIf="testPlans.length === 0">
         <div class="empty-icon">📋</div>
         <h2>No Test Plans Yet</h2>
@@ -85,17 +93,33 @@ export class TestPlanListComponent implements OnInit {
   filteredTestPlans: TestPlan[] = [];
   searchTerm: string = '';
 
+  currentPage = 0;
+  pageSize = 4;
+  totalPlans = 0;
+  totalPages = 0;
+
   constructor(
     private testPlanService: TestPlanService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit() {
-    this.loadTestPlans();
+    this.loadTestPlanCount();
   }
 
   public tagToColor = tagToColor;
   public contrastingForeground = contrastingForeground;
+
+  loadTestPlanCount() {
+    this.testPlanService.getTestPlanCount().subscribe({
+      next: (count) => {
+        this.totalPlans = count;
+        this.totalPages = Math.ceil(count / this.pageSize);
+        this.loadTestPlans();
+      },
+      error: (error) => console.error('Error loading test plan count:', error)
+    });
+  }
 
   filterTestPlans() {
     const term = this.searchTerm.trim().toLowerCase();
@@ -114,13 +138,18 @@ export class TestPlanListComponent implements OnInit {
   }
 
   loadTestPlans() {
-    this.testPlanService.getTestPlans().subscribe({
+    this.testPlanService.getTestPlans(this.currentPage, this.pageSize).subscribe({
       next: (plans) => {
         this.testPlans = plans;
         this.filterTestPlans();
       },
       error: (error) => console.error('Error loading test plans:', error)
     });
+  }
+
+  onPageChange(page: number) {
+    this.currentPage = page;
+    this.loadTestPlans();
   }
 
   createTestPlan() {

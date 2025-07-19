@@ -26,3 +26,7 @@ export interface TestCase {
   createdDate?: Date;
   updatedDate?: Date;
 }
+
+export interface TestPlanCount {
+  count: number;
+}

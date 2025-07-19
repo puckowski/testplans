@@ -1,5 +1,6 @@
 package com.puckowski.testing.controller;
 
+import com.puckowski.testing.dto.TestPlanCountDTO;
 import com.puckowski.testing.dto.TestPlanDTO;
 import com.puckowski.testing.dto.TestCaseDTO;
 import com.puckowski.testing.dto.TestTagDTO;
@@ -24,44 +25,77 @@ public class TestCaseController {
 
     // ------ CRUD for Test Plans ------
 
-    @GetMapping("/testplans")
-    public List<TestPlanDTO> getAllTestPlans() throws SQLException {
-        String sql = "SELECT * FROM test_plan";
+    @GetMapping("/testplans/count")
+    public TestPlanCountDTO getTestPlanCount() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM test_plan";
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
-            // Convert ResultSet to Iterator<TestPlanDTO>
-            Iterator<TestPlanDTO> iter = new Iterator<>() {
+            if (rs.next()) {
+                return new TestPlanCountDTO(rs.getLong(1));
+            } else {
+                throw new SQLException("Failed to count test plans");
+            }
+        }
+    }
+
+    @GetMapping("/testplans")
+    public List<TestPlanDTO> getAllTestPlans(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) throws SQLException {
+        String sql = "SELECT * FROM test_plan ORDER BY id LIMIT ? OFFSET ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, size);
+            ps.setInt(2, page * size);
+
+            ResultSet rs = ps.executeQuery();
+
+            // State for the iterator
+            class RSIterator implements Iterator<TestPlanDTO> {
+                private boolean hasNextChecked = false;
+                private boolean hasNext;
+                private boolean finished = false;
+
                 @Override
                 public boolean hasNext() {
-                    try {
-                        return !rs.isClosed() && rs.next();
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
+                    if (!hasNextChecked && !finished) {
+                        try {
+                            hasNext = rs.next();
+                            hasNextChecked = true;
+                            if (!hasNext) {
+                                finished = true;
+                                rs.close();
+                            }
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
+                        }
                     }
+                    return hasNext;
                 }
 
                 @Override
                 public TestPlanDTO next() {
+                    if (!hasNext()) throw new NoSuchElementException();
+                    hasNextChecked = false;
                     try {
                         final TestPlanDTO plan = toTestPlanDTO(rs);
-
                         loadTestPlanTags(plan.id(), plan);
-
                         return plan;
                     } catch (SQLException e) {
                         throw new RuntimeException(e);
                     }
                 }
-            };
+            }
 
-            // Use StreamSupport to stream the iterator
-            var spliterator = Spliterators.spliteratorUnknownSize(iter, Spliterator.ORDERED);
+            var spliterator = Spliterators.spliteratorUnknownSize(new RSIterator(), Spliterator.ORDERED);
             var stream = StreamSupport.stream(spliterator, false);
 
-            // Use a Gatherer to collect into a List
-            return stream.gather(Gatherers.windowFixed(100)) // Gather in fixed-size windows of 100 (for demo)
-                    .flatMap(List::stream) // flatten if needed, or just collect directly if you prefer
+            // Gather into window of 'size' (could also just collect directly)
+            return stream.gather(Gatherers.windowFixed(size))
+                    .flatMap(List::stream)
                     .toList();
         }
     }
