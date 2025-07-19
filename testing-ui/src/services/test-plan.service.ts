@@ -12,12 +12,12 @@ export class TestPlanService {
   constructor(private http: HttpClient) { }
 
   // Test Plan operations
-  getTestPlans(page = 0, size = 20): Observable<TestPlan[]> {
-    return this.http.get<TestPlan[]>(`${this.apiUrl}/testplans?page=${page}&size=${size}`);
+  getTestPlans(page = 0, size = 20, tag?: string): Observable<TestPlan[]> {
+    return this.http.get<TestPlan[]>(`${this.apiUrl}/testplans?page=${page}&size=${size}&tag=${encodeURIComponent(tag || '')}`);
   }
 
-  getTestPlanCount(): Observable<number> {
-    return this.http.get<TestPlanCount>(`${this.apiUrl}/testplans/count`).pipe(
+  getTestPlanCount(tag?: string): Observable<number> {
+    return this.http.get<TestPlanCount>(`${this.apiUrl}/testplans/count?tag=${encodeURIComponent(tag || '')}`).pipe(
       map(res => res.count)
     );
   }

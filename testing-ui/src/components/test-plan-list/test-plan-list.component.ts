@@ -32,8 +32,8 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
         </button>
       </div>
 
-      <div class="grid" *ngIf="filteredTestPlans.length > 0">
-        <div class="card" *ngFor="let testPlan of filteredTestPlans">
+      <div class="grid" *ngIf="testPlans.length > 0">
+        <div class="card" *ngFor="let testPlan of testPlans">
           <div class="card-header">
             <h3>{{ testPlan.name }}</h3>
             <span class="status-badge" [class]="'status-' + testPlan.status.toLowerCase()">
@@ -90,7 +90,6 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
 })
 export class TestPlanListComponent implements OnInit {
   testPlans: TestPlan[] = [];
-  filteredTestPlans: TestPlan[] = [];
   searchTerm: string = '';
 
   currentPage = 0;
@@ -111,7 +110,7 @@ export class TestPlanListComponent implements OnInit {
   public contrastingForeground = contrastingForeground;
 
   loadTestPlanCount() {
-    this.testPlanService.getTestPlanCount().subscribe({
+    this.testPlanService.getTestPlanCount(this.searchTerm).subscribe({
       next: (count) => {
         this.totalPlans = count;
         this.totalPages = Math.ceil(count / this.pageSize);
@@ -122,26 +121,27 @@ export class TestPlanListComponent implements OnInit {
   }
 
   filterTestPlans() {
-    const term = this.searchTerm.trim().toLowerCase();
-    if (!term) {
-      this.filteredTestPlans = this.testPlans;
-      return;
-    }
-    this.filteredTestPlans = this.testPlans.filter(plan =>
-      plan.tagList && plan.tagList?.some(tag => tag.tag && tag.tag.toLowerCase().includes(term))
-    );
+    this.loadTestPlanCount();
   }
 
   public setSearchPlanFilter(tag: string) {
     this.searchTerm = tag;
+    this.resetPagination();
     this.filterTestPlans();
   }
 
+  private resetPagination() {
+    this.currentPage = 0;
+    this.pageSize = 4;
+    this.totalPlans = 0;
+    this.totalPages = 0;
+  }
+
+
   loadTestPlans() {
-    this.testPlanService.getTestPlans(this.currentPage, this.pageSize).subscribe({
+    this.testPlanService.getTestPlans(this.currentPage, this.pageSize, this.searchTerm).subscribe({
       next: (plans) => {
         this.testPlans = plans;
-        this.filterTestPlans();
       },
       error: (error) => console.error('Error loading test plans:', error)
     });

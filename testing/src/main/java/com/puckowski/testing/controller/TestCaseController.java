@@ -26,15 +26,34 @@ public class TestCaseController {
     // ------ CRUD for Test Plans ------
 
     @GetMapping("/testplans/count")
-    public TestPlanCountDTO getTestPlanCount() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM test_plan";
+    public TestPlanCountDTO getTestPlanCount(
+            @RequestParam(required = false) String tag
+    ) throws SQLException {
+        String baseSql = "SELECT COUNT(DISTINCT tp.id) FROM test_plan tp";
+        String joinSql = "";
+        String whereSql = "";
+        List<Object> params = new ArrayList<>();
+        if (tag != null && !tag.isBlank()) {
+            joinSql = " INNER JOIN test_plan_tags tpt ON tp.id = tpt.test_plan_id";
+            whereSql = " WHERE tpt.tag = ?";
+            params.add(tag);
+        }
+        String sql = baseSql + joinSql + whereSql;
+
         try (Connection conn = dataSource.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            if (rs.next()) {
-                return new TestPlanCountDTO(rs.getLong(1));
-            } else {
-                throw new SQLException("Failed to count test plans");
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            int paramIndex = 1;
+            for (Object param : params) {
+                ps.setObject(paramIndex++, param);
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new TestPlanCountDTO(rs.getLong(1));
+                } else {
+                    throw new SQLException("Failed to count test plans");
+                }
             }
         }
     }
@@ -42,18 +61,36 @@ public class TestCaseController {
     @GetMapping("/testplans")
     public List<TestPlanDTO> getAllTestPlans(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String tag
     ) throws SQLException {
-        String sql = "SELECT * FROM test_plan ORDER BY id LIMIT ? OFFSET ?";
+        // Dynamic SQL: If tag is set, join and filter; else, normal select
+        String baseSql = "SELECT DISTINCT tp.* FROM test_plan tp";
+        String joinSql = "";
+        String whereSql = "";
+        List<Object> params = new ArrayList<>();
+        if (tag != null && !tag.isBlank()) {
+            joinSql = " INNER JOIN test_plan_tags tpt ON tp.id = tpt.test_plan_id";
+            whereSql = " WHERE tpt.tag = ?";
+            params.add(tag);
+        }
+        String orderSql = " ORDER BY tp.id LIMIT ? OFFSET ?";
+        String sql = baseSql + joinSql + whereSql + orderSql;
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, size);
-            ps.setInt(2, page * size);
+            int paramIndex = 1;
+            // Set tag param if needed
+            for (Object param : params) {
+                ps.setObject(paramIndex++, param);
+            }
+            // Always set limit/offset
+            ps.setInt(paramIndex++, size);
+            ps.setInt(paramIndex++, page * size);
 
             ResultSet rs = ps.executeQuery();
 
-            // State for the iterator
             class RSIterator implements Iterator<TestPlanDTO> {
                 private boolean hasNextChecked = false;
                 private boolean hasNext;
@@ -92,8 +129,6 @@ public class TestCaseController {
 
             var spliterator = Spliterators.spliteratorUnknownSize(new RSIterator(), Spliterator.ORDERED);
             var stream = StreamSupport.stream(spliterator, false);
-
-            // Gather into window of 'size' (could also just collect directly)
             return stream.gather(Gatherers.windowFixed(size))
                     .flatMap(List::stream)
                     .toList();
