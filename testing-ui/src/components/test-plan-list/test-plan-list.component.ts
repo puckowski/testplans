@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TestPlan } from '../../models/test-plan.model';
 import { TestPlanService } from '../../services/test-plan.service';
 import { FormsModule } from '@angular/forms';
@@ -99,15 +99,38 @@ export class TestPlanListComponent implements OnInit {
 
   constructor(
     private testPlanService: TestPlanService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) { }
 
   ngOnInit() {
-    this.loadTestPlanCount();
+    // Subscribe to query params to handle browser navigation & reload
+    this.route.queryParams.subscribe(params => {
+      // Set defaults or use from params
+      this.currentPage = +params['page'] || 0;
+      this.pageSize = +params['size'] || 4;
+      this.searchTerm = params['search'] || '';
+
+      // Now load the count and plans with those params
+      this.loadTestPlanCount();
+    });
   }
 
   public tagToColor = tagToColor;
   public contrastingForeground = contrastingForeground;
+
+  private updateQueryParams() {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        page: this.currentPage,
+        size: this.pageSize,
+        search: this.searchTerm || undefined // don't include empty
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
 
   loadTestPlanCount() {
     this.testPlanService.getTestPlanCount(this.searchTerm).subscribe({
@@ -121,13 +144,13 @@ export class TestPlanListComponent implements OnInit {
   }
 
   filterTestPlans() {
-    this.loadTestPlanCount();
+    this.updateQueryParams();
   }
 
   public setSearchPlanFilter(tag: string) {
     this.searchTerm = tag;
     this.resetPagination();
-    this.filterTestPlans();
+    this.updateQueryParams();
   }
 
   private resetPagination() {
@@ -149,19 +172,31 @@ export class TestPlanListComponent implements OnInit {
 
   onPageChange(page: number) {
     this.currentPage = page;
-    this.loadTestPlans();
+    this.updateQueryParams();
   }
 
   createTestPlan() {
-    this.router.navigate(['/test-plans/create']);
+    this.router.navigate(['/test-plans/create'], {
+      queryParams: {
+        ...this.route.snapshot.queryParams
+      }
+    });
   }
 
   viewTestPlan(id: number) {
-    this.router.navigate(['/test-plans', id]);
+    this.router.navigate(['/test-plans', id], {
+      queryParams: {
+        ...this.route.snapshot.queryParams
+      }
+    });
   }
 
   editTestPlan(id: number) {
-    this.router.navigate(['/test-plans', id, 'edit']);
+    this.router.navigate(['/test-plans', id, 'edit'], {
+      queryParams: {
+        ...this.route.snapshot.queryParams
+      }
+    });
   }
 
   deleteTestPlan(id: number) {

@@ -95,6 +95,7 @@ export class TestPlanFormComponent implements OnInit {
   };
   isEditMode = false;
   testPlanId?: number;
+  previousQueryParams: any = {};
 
   constructor(
     private testPlanService: TestPlanService,
@@ -105,6 +106,7 @@ export class TestPlanFormComponent implements OnInit {
   ngOnInit() {
     this.testPlanId = Number(this.route.snapshot.paramMap.get('id'));
     this.isEditMode = !!this.testPlanId;
+    this.previousQueryParams = { ...this.route.snapshot.queryParams };
 
     if (this.isEditMode) {
       this.loadTestPlan();
@@ -143,6 +145,8 @@ export class TestPlanFormComponent implements OnInit {
   }
 
   goBack() {
-    this.router.navigate(['/test-plans']);
+    this.router.navigate(['/test-plans'], {
+      queryParams: this.previousQueryParams
+    });
   }
 }

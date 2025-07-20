@@ -107,6 +107,7 @@ export class TestPlanDetailComponent implements OnInit {
   testPlan?: TestPlan;
   testCases: TestCase[] = [];
   testPlanId!: number;
+  previousQueryParams: any = {};
 
   constructor(
     private testPlanService: TestPlanService,
@@ -116,6 +117,7 @@ export class TestPlanDetailComponent implements OnInit {
 
   ngOnInit() {
     this.testPlanId = Number(this.route.snapshot.paramMap.get('id'));
+    this.previousQueryParams = { ...this.route.snapshot.queryParams };
     this.loadTestPlan();
     this.loadTestCases();
   }
@@ -138,7 +140,9 @@ export class TestPlanDetailComponent implements OnInit {
   public contrastingForeground = contrastingForeground;
 
   goBack() {
-    this.router.navigate(['/test-plans']);
+    this.router.navigate(['/test-plans'], {
+      queryParams: this.previousQueryParams
+    });
   }
 
   editTestPlan() {
