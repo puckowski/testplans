@@ -16,6 +16,10 @@ export class TestPlanService {
     return this.http.get<TestPlan[]>(`${this.apiUrl}/testplans?page=${page}&size=${size}&tag=${encodeURIComponent(tag || '')}`);
   }
 
+  getTestPlanWithCases(planId: number): Observable<TestPlan> {
+    return this.http.get<TestPlan>(`${this.apiUrl}/testplans/${planId}/with-testcases`);
+  }
+
   getTestPlanCount(tag?: string): Observable<number> {
     return this.http.get<TestPlanCount>(`${this.apiUrl}/testplans/count?tag=${encodeURIComponent(tag || '')}`).pipe(
       map(res => res.count)

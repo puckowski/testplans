@@ -7,6 +7,7 @@ import { TestPlanListComponent } from './components/test-plan-list/test-plan-lis
 import { TestPlanFormComponent } from './components/test-plan-form/test-plan-form.component';
 import { TestPlanDetailComponent } from './components/test-plan-detail/test-plan-detail.component';
 import { TestCaseFormComponent } from './components/test-case-form/test-case-form.component';
+import { TestPlanWithCasesComponent } from './components/test-plan-execute/test-plan-with-cases.component';
 
 @Component({
   selector: 'app-root',
@@ -33,7 +34,7 @@ import { TestCaseFormComponent } from './components/test-case-form/test-case-for
   `
 })
 export class App {
-  constructor(private router: Router) {}
+  constructor(private router: Router) { }
 
   navigateHome() {
     this.router.navigate(['/test-plans']);
@@ -47,7 +48,11 @@ const routes: Routes = [
   { path: 'test-plans/:id', component: TestPlanDetailComponent },
   { path: 'test-plans/:id/edit', component: TestPlanFormComponent },
   { path: 'test-plans/:id/test-cases/create', component: TestCaseFormComponent },
-  { path: 'test-cases/:testCaseId/edit', component: TestCaseFormComponent }
+  { path: 'test-cases/:testCaseId/edit', component: TestCaseFormComponent },
+  {
+    path: 'test-plans/:id/with-cases',
+    component: TestPlanWithCasesComponent
+  }
 ];
 
 bootstrapApplication(App, {

@@ -660,3 +660,9 @@ h4 {
   font-weight: bold;
   text-decoration: underline;
 }
+
+.test-case-card.collapsed {
+  background-color: #f0f0f0;
+  opacity: 0.6;
+  transition: background-color 0.3s, opacity 0.3s;
+}

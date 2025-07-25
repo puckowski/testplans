@@ -58,6 +58,35 @@ public class TestCaseController {
         }
     }
 
+    @GetMapping("/testplans/{id}/with-testcases")
+    public TestPlanDTO getTestPlanWithTestCases(@PathVariable Long id) throws SQLException {
+        TestPlanDTO plan = getTestPlan(id);
+
+        String sql = "SELECT * FROM test_case WHERE test_plan_id = ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ResultSet rs = ps.executeQuery();
+
+            List<TestCaseDTO> testCases = new ArrayList<>();
+            while (rs.next()) {
+                testCases.add(toTestCaseDTO(rs));
+            }
+
+            // Return a new TestPlanDTO with test cases added
+            return new TestPlanDTO(
+                    plan.id(),
+                    plan.name(),
+                    plan.description(),
+                    plan.createdAt(),
+                    plan.status(),
+                    plan.tagList(),
+                    testCases
+            );
+        }
+    }
+
+
     @GetMapping("/testplans")
     public List<TestPlanDTO> getAllTestPlans(
             @RequestParam(defaultValue = "0") int page,
@@ -395,6 +424,7 @@ public class TestCaseController {
                 rs.getString("description"),
                 getLocalDateTime(rs, "created_at"),
                 rs.getString("status"),
+                new ArrayList<>(),
                 new ArrayList<>()
         );
     }

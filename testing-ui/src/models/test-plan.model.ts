@@ -12,6 +12,7 @@ export interface TestPlan {
   createdDate?: Date;
   updatedDate?: Date;
   tagList: TestTag[];
+  testCases?: TestCase[];
 }
 
 export interface TestCase {

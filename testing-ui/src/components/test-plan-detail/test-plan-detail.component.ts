@@ -23,6 +23,9 @@ import { contrastingForeground } from '../../utils/color.util';
           <button class="btn btn-outline" (click)="editTestPlan()">
             Edit Plan
           </button>
+          <button class="btn btn-primary" (click)="executeTestPlan()">
+            ▶ Execute Plan
+          </button>
         </div>
       </div>
 
@@ -126,6 +129,12 @@ export class TestPlanDetailComponent implements OnInit {
     this.testPlanService.getTestPlan(this.testPlanId).subscribe({
       next: (testPlan) => this.testPlan = testPlan,
       error: (error) => console.error('Error loading test plan:', error)
+    });
+  }
+
+  executeTestPlan() {
+    this.router.navigate(['/test-plans', this.testPlanId, 'with-cases'], {
+      queryParams: this.previousQueryParams
     });
   }
 
