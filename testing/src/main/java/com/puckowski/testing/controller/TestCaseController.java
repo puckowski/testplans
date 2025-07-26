@@ -10,8 +10,6 @@ import javax.sql.DataSource;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Gatherers;
-import java.util.stream.StreamSupport;
 
 @RestController
 @RequestMapping("/api")
@@ -120,47 +118,14 @@ public class TestCaseController {
 
             ResultSet rs = ps.executeQuery();
 
-            class RSIterator implements Iterator<TestPlanDTO> {
-                private boolean hasNextChecked = false;
-                private boolean hasNext;
-                private boolean finished = false;
-
-                @Override
-                public boolean hasNext() {
-                    if (!hasNextChecked && !finished) {
-                        try {
-                            hasNext = rs.next();
-                            hasNextChecked = true;
-                            if (!hasNext) {
-                                finished = true;
-                                rs.close();
-                            }
-                        } catch (SQLException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                    return hasNext;
-                }
-
-                @Override
-                public TestPlanDTO next() {
-                    if (!hasNext()) throw new NoSuchElementException();
-                    hasNextChecked = false;
-                    try {
-                        final TestPlanDTO plan = toTestPlanDTO(rs);
-                        loadTestPlanTags(plan.id(), plan);
-                        return plan;
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
+            List<TestPlanDTO> result = new ArrayList<>();
+            while (rs.next()) {
+                TestPlanDTO plan = toTestPlanDTO(rs);
+                loadTestPlanTags(plan.id(), plan);
+                result.add(plan);
             }
-
-            var spliterator = Spliterators.spliteratorUnknownSize(new RSIterator(), Spliterator.ORDERED);
-            var stream = StreamSupport.stream(spliterator, false);
-            return stream.gather(Gatherers.windowFixed(size))
-                    .flatMap(List::stream)
-                    .toList();
+            rs.close();
+            return result;
         }
     }
 
@@ -306,48 +271,12 @@ public class TestCaseController {
             ps.setLong(1, planId);
             ResultSet rs = ps.executeQuery();
 
-            // Iterator that lazily loads from the ResultSet
-            Iterator<TestCaseDTO> iter = new Iterator<>() {
-                boolean nextCalled = false;
-                boolean hasNext = false;
-
-                private void advance() {
-                    if (!nextCalled) {
-                        try {
-                            hasNext = rs.next();
-                            nextCalled = true;
-                        } catch (SQLException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                }
-
-                @Override
-                public boolean hasNext() {
-                    advance();
-                    return hasNext;
-                }
-
-                @Override
-                public TestCaseDTO next() {
-                    advance();
-                    if (!hasNext) throw new NoSuchElementException();
-                    nextCalled = false; // For the next call
-                    try {
-                        return toTestCaseDTO(rs);
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            };
-
-            var spliterator = Spliterators.spliteratorUnknownSize(iter, Spliterator.ORDERED);
-            var stream = StreamSupport.stream(spliterator, false);
-
-            // Use Gatherers to batch in fixed-size windows if you want, or flatMap to flatten
-            return stream.gather(Gatherers.windowFixed(50)) // Use 50 per window for demo
-                    .flatMap(List::stream)
-                    .toList();
+            List<TestCaseDTO> result = new ArrayList<>();
+            while (rs.next()) {
+                result.add(toTestCaseDTO(rs));
+            }
+            rs.close();
+            return result;
         }
     }
 
