@@ -20,6 +20,7 @@ repositories {
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.xerial:sqlite-jdbc:3.45.2.0'
+	implementation("com.fasterxml.jackson.module:jackson-module-afterburner:2.18.4")
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
