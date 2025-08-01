@@ -91,7 +91,6 @@ public class TestCaseController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String tag
     ) throws SQLException {
-        // Dynamic SQL: If tag is set, join and filter; else, normal select
         String baseSql = "SELECT DISTINCT tp.* FROM test_plan tp";
         String joinSql = "";
         String whereSql = "";
@@ -104,29 +103,61 @@ public class TestCaseController {
         String orderSql = " ORDER BY tp.id LIMIT ? OFFSET ?";
         String sql = baseSql + joinSql + whereSql + orderSql;
 
+        List<TestPlanDTO> result = new ArrayList<>();
+
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             int paramIndex = 1;
-            // Set tag param if needed
             for (Object param : params) {
                 ps.setObject(paramIndex++, param);
             }
-            // Always set limit/offset
             ps.setInt(paramIndex++, size);
             ps.setInt(paramIndex++, page * size);
 
             ResultSet rs = ps.executeQuery();
 
-            List<TestPlanDTO> result = new ArrayList<>();
+            List<TestPlanDTO> plans = new ArrayList<>();
+            List<Long> planIds = new ArrayList<>();
             while (rs.next()) {
                 TestPlanDTO plan = toTestPlanDTO(rs);
-                loadTestPlanTags(plan.id(), plan);
-                result.add(plan);
+                plans.add(plan);
+                planIds.add(plan.id());
             }
             rs.close();
-            return result;
+
+            Map<Long, List<TestTagDTO>> tagsByPlanId = new HashMap<>();
+            final int batchSize = 10;
+            for (int i = 0; i < planIds.size(); i += batchSize) {
+                int end = Math.min(i + batchSize, planIds.size());
+                List<Long> batch = planIds.subList(i, end);
+
+                String placeholders = String.join(",", Collections.nCopies(batch.size(), "?"));
+                String tagSql = "SELECT * FROM test_plan_tags WHERE test_plan_id IN (" + placeholders + ")";
+
+                try (PreparedStatement tagPs = conn.prepareStatement(tagSql)) {
+                    for (int j = 0; j < batch.size(); j++) {
+                        tagPs.setLong(j + 1, batch.get(j));
+                    }
+                    try (ResultSet tagRs = tagPs.executeQuery()) {
+                        while (tagRs.next()) {
+                            Long planId = tagRs.getLong("test_plan_id");
+                            tagsByPlanId
+                                    .computeIfAbsent(planId, k -> new ArrayList<>())
+                                    .add(toTestTagDTO(tagRs));
+                        }
+                    }
+                }
+            }
+
+            for (TestPlanDTO plan : plans) {
+                List<TestTagDTO> tags = tagsByPlanId.getOrDefault(plan.id(), Collections.emptyList());
+                plan.tagList().addAll(tags);
+                result.add(plan);
+            }
         }
+
+        return result;
     }
 
     @GetMapping("/testplans/{id}")
