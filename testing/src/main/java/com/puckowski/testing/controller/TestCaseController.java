@@ -87,8 +87,8 @@ public class TestCaseController {
 
     @GetMapping("/testplans")
     public List<TestPlanDTO> getAllTestPlans(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long where,
+            @RequestParam(defaultValue = "20") int limit,
             @RequestParam(required = false) String tag
     ) throws SQLException {
         String baseSql = "SELECT DISTINCT tp.* FROM test_plan tp";
@@ -100,7 +100,17 @@ public class TestCaseController {
             whereSql = " WHERE tpt.tag = ?";
             params.add(tag);
         }
-        String orderSql = " ORDER BY tp.id LIMIT ? OFFSET ?";
+
+        if (where != null) {
+            if (whereSql.isEmpty()) {
+                whereSql = " WHERE tp.id > ?";
+            } else {
+                whereSql += " AND tp.id > ?";
+            }
+            params.add(where);
+        }
+
+        String orderSql = " ORDER BY tp.id LIMIT ?";
         String sql = baseSql + joinSql + whereSql + orderSql;
 
         List<TestPlanDTO> result = new ArrayList<>();
@@ -112,8 +122,7 @@ public class TestCaseController {
             for (Object param : params) {
                 ps.setObject(paramIndex++, param);
             }
-            ps.setInt(paramIndex++, size);
-            ps.setInt(paramIndex++, page * size);
+            ps.setInt(paramIndex++, limit);
 
             ResultSet rs = ps.executeQuery();
 

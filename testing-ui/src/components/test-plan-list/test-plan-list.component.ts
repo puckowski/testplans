@@ -69,12 +69,10 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
         </div>
       </div>
 
-      <div class="pagination" *ngIf="totalPages > 1">
-        <button class="btn btn-secondary" (click)="onPageChange(currentPage - 1)" [disabled]="currentPage === 0">Prev</button>
-        <span *ngFor="let page of [].constructor(totalPages); let i = index">
-          <button class="btn btn-secondary" (click)="onPageChange(i)" [class.active]="i === currentPage">{{ i + 1 }}</button>
-        </span>
-        <button class="btn btn-secondary" (click)="onPageChange(currentPage + 1)" [disabled]="currentPage === totalPages - 1">Next</button>
+      <div class="pagination">
+        <button class="btn btn-secondary" (click)="prevPage()" [disabled]="cursorStack.length <= 1">Prev</button>
+        <span class="page-info">Showing up to {{ pageSize }} plans</span>
+        <button class="btn btn-secondary" (click)="nextPage()" [disabled]="!testPlans || testPlans.length < pageSize">Next</button>
       </div>
 
       <div class="empty-state" *ngIf="testPlans.length === 0">
@@ -92,10 +90,11 @@ export class TestPlanListComponent implements OnInit {
   testPlans: TestPlan[] = [];
   searchTerm: string = '';
 
-  currentPage = 0;
-  pageSize = 4;
-  totalPlans = 0;
-  totalPages = 0;
+  // Keyset pagination state
+  pageSize = 4; // limit
+  // stack of cursors (where values) to allow going back; initial null means start from beginning
+  cursorStack: (number | null)[] = [null];
+  currentWhere: number | null = null;
 
   constructor(
     private testPlanService: TestPlanService,
@@ -107,12 +106,35 @@ export class TestPlanListComponent implements OnInit {
     // Subscribe to query params to handle browser navigation & reload
     this.route.queryParams.subscribe(params => {
       // Set defaults or use from params
-      this.currentPage = +params['page'] || 0;
       this.pageSize = +params['size'] || 4;
       this.searchTerm = params['search'] || '';
+      const whereParam = params['where'];
+      const whereProvided = params.hasOwnProperty('where');
+      this.currentWhere = whereParam != null ? Number(whereParam) : null;
 
-      // Now load the count and plans with those params
-      this.loadTestPlanCount();
+      // Rebuild cursor stack from 'cursors' param if present (comma-separated list)
+      const cursorsParam = params['cursors'];
+      if (cursorsParam) {
+        try {
+          const parts = String(cursorsParam).split(',').filter(p => p.length > 0).map(p => Number(p));
+          this.cursorStack = [null, ...parts];
+        } catch (e) {
+          this.cursorStack = [null];
+        }
+      } else {
+        // fallback: keep simple stack with only currentWhere if provided
+        this.cursorStack = [null];
+        if (this.currentWhere != null) this.cursorStack.push(this.currentWhere);
+      }
+
+      // Only derive currentWhere from cursorStack when an explicit 'where' query param was not provided
+      if (!whereProvided && this.cursorStack.length > 1) {
+        const last = this.cursorStack[this.cursorStack.length - 1];
+        this.currentWhere = last ?? null;
+      }
+
+      // Load plans for current cursor
+      this.loadTestPlans();
     });
   }
 
@@ -123,9 +145,10 @@ export class TestPlanListComponent implements OnInit {
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: {
-        page: this.currentPage,
-        size: this.pageSize,
-        search: this.searchTerm || undefined // don't include empty
+  where: this.currentWhere != null ? this.currentWhere : undefined,
+  size: this.pageSize,
+  search: this.searchTerm || undefined, // don't include empty
+  cursors: this.cursorStack && this.cursorStack.length > 1 ? this.cursorStack.slice(1).filter(x => x != null).join(',') : undefined
       },
       queryParamsHandling: 'merge',
       replaceUrl: true
@@ -135,9 +158,10 @@ export class TestPlanListComponent implements OnInit {
   loadTestPlanCount() {
     this.testPlanService.getTestPlanCount(this.searchTerm).subscribe({
       next: (count) => {
-        this.totalPlans = count;
-        this.totalPages = Math.ceil(count / this.pageSize);
-        this.loadTestPlans();
+  // We keep count for informational purposes but keyset pagination doesn't use offsets
+  // Show only next/prev controls
+  // (no change to cursor stack here)
+  this.loadTestPlans();
       },
       error: (error) => console.error('Error loading test plan count:', error)
     });
@@ -149,20 +173,21 @@ export class TestPlanListComponent implements OnInit {
 
   public setSearchPlanFilter(tag: string) {
     this.searchTerm = tag;
-    this.resetPagination();
-    this.updateQueryParams();
+  // reset keyset pagination and query params
+  this.currentWhere = null;
+  this.cursorStack = [null];
+  this.updateQueryParams();
   }
 
   private resetPagination() {
-    this.currentPage = 0;
-    this.pageSize = 4;
-    this.totalPlans = 0;
-    this.totalPages = 0;
+  this.cursorStack = [null];
+  this.currentWhere = null;
+  this.pageSize = 4;
   }
 
 
   loadTestPlans() {
-    this.testPlanService.getTestPlans(this.currentPage, this.pageSize, this.searchTerm).subscribe({
+    this.testPlanService.getTestPlans(this.currentWhere ?? undefined, this.pageSize, this.searchTerm).subscribe({
       next: (plans) => {
         this.testPlans = plans;
       },
@@ -170,8 +195,24 @@ export class TestPlanListComponent implements OnInit {
     });
   }
 
-  onPageChange(page: number) {
-    this.currentPage = page;
+  // Navigate to next page using keyset pagination
+  nextPage() {
+    if (!this.testPlans || this.testPlans.length === 0) return;
+    const last = this.testPlans[this.testPlans.length - 1];
+    const lastId = last.id!;
+  // push the current cursor (could be null) and set where to lastId for next page
+  this.cursorStack.push(this.currentWhere);
+  this.currentWhere = lastId;
+    this.updateQueryParams();
+  }
+
+  // Navigate to previous page: pop cursor stack
+  prevPage() {
+    if (this.cursorStack.length <= 1) return; // already at beginning
+    // current top is the cursor that got us here; pop it
+    this.cursorStack.pop();
+    const prev = this.cursorStack[this.cursorStack.length - 1];
+    this.currentWhere = prev ?? null;
     this.updateQueryParams();
   }
 

@@ -12,8 +12,10 @@ export class TestPlanService {
   constructor(private http: HttpClient) { }
 
   // Test Plan operations
-  getTestPlans(page = 0, size = 20, tag?: string): Observable<TestPlan[]> {
-    return this.http.get<TestPlan[]>(`${this.apiUrl}/testplans?page=${page}&size=${size}&tag=${encodeURIComponent(tag || '')}`);
+  // Keyset pagination: pass optional 'where' id and 'limit'
+  getTestPlans(where?: number, limit = 4, tag?: string): Observable<TestPlan[]> {
+    const wherePart = where != null ? `where=${where}&` : '';
+    return this.http.get<TestPlan[]>(`${this.apiUrl}/testplans?${wherePart}limit=${limit}&tag=${encodeURIComponent(tag || '')}`);
   }
 
   getTestPlanWithCases(planId: number): Observable<TestPlan> {
