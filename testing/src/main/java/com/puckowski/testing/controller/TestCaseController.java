@@ -87,31 +87,31 @@ public class TestCaseController {
 
     @GetMapping("/testplans")
     public List<TestPlanDTO> getAllTestPlans(
-            @RequestParam(required = false) Long where,
-            @RequestParam(defaultValue = "20") int limit,
-            @RequestParam(required = false) String tag
+            @RequestParam(required = false, name = "after") Long after,
+            @RequestParam(required = false, name = "filter") String filter,
+            @RequestParam(name = "per", defaultValue = "20") int limit
     ) throws SQLException {
         String baseSql = "SELECT DISTINCT tp.* FROM test_plan tp";
         String joinSql = "";
         String whereSql = "";
         List<Object> params = new ArrayList<>();
-        if (tag != null && !tag.isBlank()) {
+        if (filter != null && !filter.isBlank()) {
             joinSql = " INNER JOIN test_plan_tags tpt ON tp.id = tpt.test_plan_id";
             whereSql = " WHERE tpt.tag = ?";
-            params.add(tag);
+            params.add(filter);
         }
 
-        if (where != null) {
+        if (after != null) {
             if (whereSql.isEmpty()) {
                 whereSql = " WHERE tp.id > ?";
             } else {
                 whereSql += " AND tp.id > ?";
             }
-            params.add(where);
+            params.add(after);
         }
 
         String orderSql = " ORDER BY tp.id LIMIT ?";
-        String sql = baseSql + joinSql + whereSql + orderSql;
+    String sql = baseSql + joinSql + whereSql + orderSql;
 
         List<TestPlanDTO> result = new ArrayList<>();
 

@@ -13,9 +13,10 @@ export class TestPlanService {
 
   // Test Plan operations
   // Keyset pagination: pass optional 'where' id and 'limit'
-  getTestPlans(where?: number, limit = 4, tag?: string): Observable<TestPlan[]> {
-    const wherePart = where != null ? `where=${where}&` : '';
-    return this.http.get<TestPlan[]>(`${this.apiUrl}/testplans?${wherePart}limit=${limit}&tag=${encodeURIComponent(tag || '')}`);
+  // Keyset pagination using friendly params: after, per, filter
+  getTestPlans(after?: number, per = 20, filter?: string): Observable<TestPlan[]> {
+    const afterPart = after != null ? `after=${after}&` : '';
+    return this.http.get<TestPlan[]>(`${this.apiUrl}/testplans?${afterPart}per=${per}&filter=${encodeURIComponent(filter || '')}`);
   }
 
   getTestPlanWithCases(planId: number): Observable<TestPlan> {

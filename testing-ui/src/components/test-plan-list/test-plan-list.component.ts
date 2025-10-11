@@ -70,7 +70,7 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
       </div>
 
       <div class="pagination">
-        <button class="btn btn-secondary" (click)="prevPage()" [disabled]="cursorStack.length <= 1">Prev</button>
+        <button class="btn btn-secondary" (click)="prevPage()" [disabled]="after == null && prev == null">Prev</button>
         <span class="page-info">Showing up to {{ pageSize }} plans</span>
         <button class="btn btn-secondary" (click)="nextPage()" [disabled]="!testPlans || testPlans.length < pageSize">Next</button>
       </div>
@@ -92,9 +92,9 @@ export class TestPlanListComponent implements OnInit {
 
   // Keyset pagination state
   pageSize = 4; // limit
-  // stack of cursors (where values) to allow going back; initial null means start from beginning
-  cursorStack: (number | null)[] = [null];
-  currentWhere: number | null = null;
+  // store a single previous cursor and the current 'after' cursor
+  prev: number | null = null;
+  after: number | null = null;
 
   constructor(
     private testPlanService: TestPlanService,
@@ -105,33 +105,13 @@ export class TestPlanListComponent implements OnInit {
   ngOnInit() {
     // Subscribe to query params to handle browser navigation & reload
     this.route.queryParams.subscribe(params => {
-      // Set defaults or use from params
-      this.pageSize = +params['size'] || 4;
-      this.searchTerm = params['search'] || '';
-      const whereParam = params['where'];
-      const whereProvided = params.hasOwnProperty('where');
-      this.currentWhere = whereParam != null ? Number(whereParam) : null;
-
-      // Rebuild cursor stack from 'cursors' param if present (comma-separated list)
-      const cursorsParam = params['cursors'];
-      if (cursorsParam) {
-        try {
-          const parts = String(cursorsParam).split(',').filter(p => p.length > 0).map(p => Number(p));
-          this.cursorStack = [null, ...parts];
-        } catch (e) {
-          this.cursorStack = [null];
-        }
-      } else {
-        // fallback: keep simple stack with only currentWhere if provided
-        this.cursorStack = [null];
-        if (this.currentWhere != null) this.cursorStack.push(this.currentWhere);
-      }
-
-      // Only derive currentWhere from cursorStack when an explicit 'where' query param was not provided
-      if (!whereProvided && this.cursorStack.length > 1) {
-        const last = this.cursorStack[this.cursorStack.length - 1];
-        this.currentWhere = last ?? null;
-      }
+  // Set defaults or use from params
+  this.pageSize = +params['per'] || 4;
+  this.searchTerm = params['filter'] || '';
+  const afterParam = params['after'];
+  const prevParam = params['prev'];
+  this.after = afterParam != null ? Number(afterParam) : null;
+  this.prev = prevParam != null ? Number(prevParam) : null;
 
       // Load plans for current cursor
       this.loadTestPlans();
@@ -145,10 +125,10 @@ export class TestPlanListComponent implements OnInit {
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: {
-  where: this.currentWhere != null ? this.currentWhere : undefined,
-  size: this.pageSize,
-  search: this.searchTerm || undefined, // don't include empty
-  cursors: this.cursorStack && this.cursorStack.length > 1 ? this.cursorStack.slice(1).filter(x => x != null).join(',') : undefined
+        after: this.after != null ? this.after : undefined,
+        prev: this.prev != null ? this.prev : undefined,
+        per: this.pageSize,
+        filter: this.searchTerm || undefined
       },
       queryParamsHandling: 'merge',
       replaceUrl: true
@@ -168,26 +148,28 @@ export class TestPlanListComponent implements OnInit {
   }
 
   filterTestPlans() {
-    this.updateQueryParams();
+  this.after = null;
+  this.prev = null;
+  this.updateQueryParams();
   }
 
   public setSearchPlanFilter(tag: string) {
     this.searchTerm = tag;
-  // reset keyset pagination and query params
-  this.currentWhere = null;
-  this.cursorStack = [null];
+  // reset keyset pagination and update
+  this.after = null;
+  this.prev = null;
   this.updateQueryParams();
   }
 
   private resetPagination() {
-  this.cursorStack = [null];
-  this.currentWhere = null;
-  this.pageSize = 4;
+    this.prev = null;
+    this.after = null;
+    this.pageSize = 4;
   }
 
 
   loadTestPlans() {
-    this.testPlanService.getTestPlans(this.currentWhere ?? undefined, this.pageSize, this.searchTerm).subscribe({
+    this.testPlanService.getTestPlans(this.after ?? undefined, this.pageSize, this.searchTerm).subscribe({
       next: (plans) => {
         this.testPlans = plans;
       },
@@ -200,19 +182,23 @@ export class TestPlanListComponent implements OnInit {
     if (!this.testPlans || this.testPlans.length === 0) return;
     const last = this.testPlans[this.testPlans.length - 1];
     const lastId = last.id!;
-  // push the current cursor (could be null) and set where to lastId for next page
-  this.cursorStack.push(this.currentWhere);
-  this.currentWhere = lastId;
-    this.updateQueryParams();
+  // store previous cursor and set 'after' to lastId for next page
+  // preserve the first-page cursor in `prev` so users can jump back to the start with one click
+  if (this.prev == null) this.prev = this.after;
+  this.after = lastId;
+  this.updateQueryParams();
   }
 
   // Navigate to previous page: pop cursor stack
   prevPage() {
-    if (this.cursorStack.length <= 1) return; // already at beginning
-    // current top is the cursor that got us here; pop it
-    this.cursorStack.pop();
-    const prev = this.cursorStack[this.cursorStack.length - 1];
-    this.currentWhere = prev ?? null;
+    // If a stored prev exists, go to it. Otherwise clear 'after' to go to the first page.
+    if (this.prev != null) {
+      this.after = this.prev;
+      this.prev = null;
+    } else {
+      // go to first page
+      this.after = null;
+    }
     this.updateQueryParams();
   }
 
