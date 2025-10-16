@@ -1,3 +1,3 @@
 package com.puckowski.testing.dto;
 
-public record TestTagDTO(Long id, Long testPlanId, String tag) {}
+public record TestTagDTO(Integer id, Integer testPlanId, String tag) {}

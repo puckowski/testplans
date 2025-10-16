@@ -48,7 +48,7 @@ public class TestCaseController {
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new TestPlanCountDTO(rs.getLong(1));
+                    return new TestPlanCountDTO(rs.getInt(1));
                 } else {
                     throw new SQLException("Failed to count test plans");
                 }
@@ -91,7 +91,7 @@ public class TestCaseController {
             @RequestParam(required = false, name = "filter") String filter,
             @RequestParam(name = "per", defaultValue = "20") int limit
     ) throws SQLException {
-        String baseSql = "SELECT DISTINCT tp.* FROM test_plan tp";
+        String baseSql = "SELECT DISTINCT id,name,description,created_at,status FROM test_plan tp";
         String joinSql = "";
         String whereSql = "";
         List<Object> params = new ArrayList<>();
@@ -127,7 +127,7 @@ public class TestCaseController {
             ResultSet rs = ps.executeQuery();
 
             List<TestPlanDTO> plans = new ArrayList<>();
-            List<Long> planIds = new ArrayList<>();
+            List<Integer> planIds = new ArrayList<>();
             while (rs.next()) {
                 TestPlanDTO plan = toTestPlanDTO(rs);
                 plans.add(plan);
@@ -135,11 +135,11 @@ public class TestCaseController {
             }
             rs.close();
 
-            Map<Long, List<TestTagDTO>> tagsByPlanId = new HashMap<>();
+            Map<Integer, List<TestTagDTO>> tagsByPlanId = new HashMap<>();
             final int batchSize = 10;
             for (int i = 0; i < planIds.size(); i += batchSize) {
                 int end = Math.min(i + batchSize, planIds.size());
-                List<Long> batch = planIds.subList(i, end);
+                List<Integer> batch = planIds.subList(i, end);
 
                 String placeholders = String.join(",", Collections.nCopies(batch.size(), "?"));
                 String tagSql = "SELECT * FROM test_plan_tags WHERE test_plan_id IN (" + placeholders + ")";
@@ -150,7 +150,7 @@ public class TestCaseController {
                     }
                     try (ResultSet tagRs = tagPs.executeQuery()) {
                         while (tagRs.next()) {
-                            Long planId = tagRs.getLong("test_plan_id");
+                            Integer planId = tagRs.getInt("test_plan_id");
                             tagsByPlanId
                                     .computeIfAbsent(planId, k -> new ArrayList<>())
                                     .add(toTestTagDTO(tagRs));
@@ -171,7 +171,7 @@ public class TestCaseController {
 
     @GetMapping("/testplans/{id}")
     public TestPlanDTO getTestPlan(@PathVariable Long id) throws SQLException {
-        String sql = "SELECT * FROM test_plan WHERE id = ?";
+        String sql = "SELECT id,name,description,created_at,status FROM test_plan WHERE id = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -201,38 +201,39 @@ public class TestCaseController {
         }
     }
 
+    private long fetchLastInsertId(Connection conn) throws SQLException {
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT last_insert_rowid()")) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            } else {
+                throw new SQLException("Failed to retrieve last_insert_rowid()");
+            }
+        }
+    }
+
     @PostMapping("/testplans")
     public TestPlanDTO createTestPlan(@RequestBody TestPlanDTO dto) throws SQLException {
         String sql = "INSERT INTO test_plan (name, description, status) VALUES (?, ?, ?)";
         try (Connection conn = dataSource.getConnection()) {
-            conn.setAutoCommit(false); // Begin transaction
-
-            try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, dto.name());
                 ps.setString(2, dto.description());
                 ps.setString(3, dto.status());
                 ps.executeUpdate();
 
-                try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (keys.next()) {
-                        Long planId = keys.getLong(1);
+                long planId = fetchLastInsertId(conn);  // Turso-safe replacement
 
-                        // Insert tags in the same transaction/connection
-                        updateTestPlanTagsTransactional(conn, planId, dto);
+                updateTestPlanTagsTransactional(conn, planId, dto);
+                conn.commit();
 
-                        conn.commit(); // Commit if everything succeeds
-
-                        return getTestPlan(planId);
-                    } else {
-                        conn.rollback();
-                        throw new SQLException("Failed to retrieve ID");
-                    }
-                }
+                return getTestPlan(planId);
             } catch (Exception ex) {
-                conn.rollback(); // Rollback on error
+                conn.rollback();
                 throw ex;
             } finally {
-                conn.setAutoCommit(true); // Always restore for pooled connections
+                conn.setAutoCommit(true);
             }
         }
     }
@@ -335,23 +336,29 @@ public class TestCaseController {
 
     @PostMapping("/testplans/{planId}/testcases")
     public TestCaseDTO createTestCase(@PathVariable Long planId, @RequestBody TestCaseDTO dto) throws SQLException {
-        String sql = "INSERT INTO test_case (test_plan_id, name, description, status, expected_result, priority, steps) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setLong(1, planId);
-            ps.setString(2, dto.name());
-            ps.setString(3, dto.description());
-            ps.setString(4, dto.status() == null ? "PENDING" : dto.status());
-            ps.setString(5, dto.expectedResult());
-            ps.setString(6, dto.priority());
-            ps.setString(7, dto.steps());
-            ps.executeUpdate();
-            try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) {
-                    return getTestCase(keys.getLong(1));
-                } else {
-                    throw new SQLException("Failed to retrieve ID");
-                }
+        String sql = "INSERT INTO test_case (test_plan_id, name, description, status, expected_result, priority, steps) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = dataSource.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, planId);
+                ps.setString(2, dto.name());
+                ps.setString(3, dto.description());
+                ps.setString(4, dto.status() == null ? "PENDING" : dto.status());
+                ps.setString(5, dto.expectedResult());
+                ps.setString(6, dto.priority());
+                ps.setString(7, dto.steps());
+                ps.executeUpdate();
+
+                long id = fetchLastInsertId(conn);  // ← replaces getGeneratedKeys()
+                conn.commit();
+
+                return getTestCase(id);
+            } catch (Exception ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true);
             }
         }
     }
@@ -388,11 +395,11 @@ public class TestCaseController {
 
     private TestPlanDTO toTestPlanDTO(ResultSet rs) throws SQLException {
         return new TestPlanDTO(
-                rs.getLong("id"),
-                rs.getString("name"),
-                rs.getString("description"),
-                getLocalDateTime(rs, "created_at"),
-                rs.getString("status"),
+                rs.getInt(1),
+                rs.getString(2),
+                rs.getString(3),
+                getLocalDateTime(rs, 4),
+                rs.getString(5),
                 new ArrayList<>(),
                 new ArrayList<>()
         );
@@ -400,28 +407,28 @@ public class TestCaseController {
 
     private TestCaseDTO toTestCaseDTO(ResultSet rs) throws SQLException {
         return new TestCaseDTO(
-                rs.getLong("id"),
-                rs.getLong("test_plan_id"),
-                rs.getString("name"),
-                rs.getString("description"),
-                rs.getString("status"),
-                getLocalDateTime(rs, "created_at"),
-                rs.getString("expected_result"),
-                rs.getString("priority"),
-                rs.getString("steps")
+                rs.getInt(1),
+                rs.getInt(2),
+                rs.getString(3),
+                rs.getString(4),
+                rs.getString(5),
+                getLocalDateTime(rs, 6),
+                rs.getString(7),
+                rs.getString(8),
+                rs.getString(9)
         );
     }
 
     private TestTagDTO toTestTagDTO(ResultSet rs) throws SQLException {
         return new TestTagDTO(
-                rs.getLong("id"),
-                rs.getLong("test_plan_id"),
-                rs.getString("tag")
+                rs.getInt(1),
+                rs.getInt(2),
+                rs.getString(3)
         );
     }
 
-    private LocalDateTime getLocalDateTime(ResultSet rs, String column) throws SQLException {
-        var val = rs.getString(column);
-        return val == null ? null : LocalDateTime.parse(val.replace(" ", "T"));
+    private LocalDateTime getLocalDateTime(ResultSet rs, Integer column) throws SQLException {
+        var val = rs.getObject(column);
+        return val == null ? null : LocalDateTime.parse(val.toString().replace(" ", "T"));
     }
 }

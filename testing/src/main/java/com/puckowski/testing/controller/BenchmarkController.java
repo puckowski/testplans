@@ -15,7 +15,7 @@ public class BenchmarkController {
         List<TestPlanDTO> list = new ArrayList<>();
         for (int i = 0; i < 10000; i++) {
             list.add(new TestPlanDTO(
-                    1l,
+                    1,
                     "name",
                     "description",
                     LocalDateTime.now(),
