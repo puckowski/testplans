@@ -60,7 +60,7 @@ public class TestCaseController {
     public TestPlanDTO getTestPlanWithTestCases(@PathVariable Long id) throws SQLException {
         TestPlanDTO plan = getTestPlan(id);
 
-        String sql = "SELECT * FROM test_case WHERE test_plan_id = ?";
+        String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps FROM test_case WHERE test_plan_id = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -111,7 +111,7 @@ public class TestCaseController {
         }
 
         String orderSql = " ORDER BY tp.id LIMIT ?";
-    String sql = baseSql + joinSql + whereSql + orderSql;
+        String sql = baseSql + joinSql + whereSql + orderSql;
 
         List<TestPlanDTO> result = new ArrayList<>();
 
@@ -306,7 +306,7 @@ public class TestCaseController {
 
     @GetMapping("/testplans/{planId}/testcases")
     public List<TestCaseDTO> getTestCasesByPlan(@PathVariable Long planId) throws SQLException {
-        String sql = "SELECT * FROM test_case WHERE test_plan_id = ?";
+        String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps FROM test_case WHERE test_plan_id = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, planId);
@@ -323,7 +323,7 @@ public class TestCaseController {
 
     @GetMapping("/testcases/{id}")
     public TestCaseDTO getTestCase(@PathVariable Long id) throws SQLException {
-        String sql = "SELECT * FROM test_case WHERE id = ?";
+        String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps FROM test_case WHERE id = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);

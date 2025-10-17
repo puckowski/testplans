@@ -61,8 +61,7 @@ import { contrastingForeground } from '../../utils/color.util';
 
       <div class="test-cases-section">
         <div class="section-header">
-          @let testCases = testPlan?.testCases || [];
-          <h2>Test Cases ({{ testCases?.length || 0 }})</h2>
+          <h2>Test Cases ({{ testCases.length || 0 }})</h2>
           <button class="btn btn-primary" (click)="createTestCase()">
             <i class="icon">+</i> Add Test Case
           </button>
