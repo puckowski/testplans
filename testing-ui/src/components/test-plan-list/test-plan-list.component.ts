@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { ActivatedRoute, Router } from '@angular/router';
 import { TestPlan } from '../../models/test-plan.model';
 import { TestPlanService } from '../../services/test-plan.service';
@@ -9,7 +9,7 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
 @Component({
   selector: 'app-test-plan-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
     <div class="container">
       <div class="header">
@@ -18,7 +18,7 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
           <i class="icon">+</i> Create Test Plan
         </button>
       </div>
-
+    
       <div class="search-row">
         <input
           type="text"
@@ -26,65 +26,73 @@ import { contrastingForeground, tagToColor } from '../../utils/color.util';
           (input)="filterTestPlans()"
           placeholder="Filter by tag"
           class="form-control"
-        />
-        <button class="btn btn-secondary" (click)="searchTerm = ''; filterTestPlans()">
-          Clear Filter
-        </button>
-      </div>
-
-      <div class="grid" *ngIf="testPlans.length > 0">
-        <div class="card" *ngFor="let testPlan of testPlans">
-          <div class="card-header">
-            <h3>{{ testPlan.name }}</h3>
-            <span class="status-badge" [class]="'status-' + testPlan.status.toLowerCase()">
-              {{ testPlan.status }}
-            </span>
-          </div>
-          <div class="info-item card-section">
-            <label>Tags</label>
-            <div class="single-column">
-              <div *ngFor="let tag of testPlan.tagList">
-                <div>
-                  <span class="tag-badge" [class]="'tag-' + tag?.tag?.toLowerCase()" [style.backgroundColor]="tagToColor(tag.tag)" [style.color]="contrastingForeground(tag.tag)" (click)="setSearchPlanFilter(tag.tag)">
-                    {{ tag.tag }}
+          />
+          <button class="btn btn-secondary" (click)="searchTerm = ''; filterTestPlans()">
+            Clear Filter
+          </button>
+        </div>
+    
+        @if (testPlans.length > 0) {
+          <div class="grid">
+            @for (testPlan of testPlans; track testPlan) {
+              <div class="card">
+                <div class="card-header">
+                  <h3>{{ testPlan.name }}</h3>
+                  <span class="status-badge" [class]="'status-' + testPlan.status.toLowerCase()">
+                    {{ testPlan.status }}
                   </span>
                 </div>
+                <div class="info-item card-section">
+                  <label>Tags</label>
+                  <div class="single-column">
+                    @for (tag of testPlan.tagList; track tag) {
+                      <div>
+                        <div>
+                          <span class="tag-badge" [class]="'tag-' + tag?.tag?.toLowerCase()" [style.backgroundColor]="tagToColor(tag.tag)" [style.color]="contrastingForeground(tag.tag)" (click)="setSearchPlanFilter(tag.tag)">
+                            {{ tag.tag }}
+                          </span>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p>{{ testPlan.description }}</p>
+                  <div class="card-actions">
+                    <button class="btn btn-secondary" (click)="viewTestPlan(testPlan.id!)">
+                      View Details
+                    </button>
+                    <button class="btn btn-outline" (click)="editTestPlan(testPlan.id!)">
+                      Edit
+                    </button>
+                    <button class="btn btn-danger" (click)="deleteTestPlan(testPlan.id!)">
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            }
           </div>
-          <div class="card-body">
-            <p>{{ testPlan.description }}</p>
-            <div class="card-actions">
-              <button class="btn btn-secondary" (click)="viewTestPlan(testPlan.id!)">
-                View Details
-              </button>
-              <button class="btn btn-outline" (click)="editTestPlan(testPlan.id!)">
-                Edit
-              </button>
-              <button class="btn btn-danger" (click)="deleteTestPlan(testPlan.id!)">
-                Delete
-              </button>
-            </div>
-          </div>
+        }
+    
+        <div class="pagination">
+          <button class="btn btn-secondary" (click)="prevPage()" [disabled]="after == null && prev == null">Prev</button>
+          <span class="page-info">Showing up to {{ pageSize }} plans</span>
+          <button class="btn btn-secondary" (click)="nextPage()" [disabled]="!testPlans || testPlans.length < pageSize">Next</button>
         </div>
+    
+        @if (testPlans.length === 0) {
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <h2>No Test Plans Yet</h2>
+            <p>Create your first test plan to get started with testing</p>
+            <button class="btn btn-primary" (click)="createTestPlan()">
+              Create Test Plan
+            </button>
+          </div>
+        }
       </div>
-
-      <div class="pagination">
-        <button class="btn btn-secondary" (click)="prevPage()" [disabled]="after == null && prev == null">Prev</button>
-        <span class="page-info">Showing up to {{ pageSize }} plans</span>
-        <button class="btn btn-secondary" (click)="nextPage()" [disabled]="!testPlans || testPlans.length < pageSize">Next</button>
-      </div>
-
-      <div class="empty-state" *ngIf="testPlans.length === 0">
-        <div class="empty-icon">📋</div>
-        <h2>No Test Plans Yet</h2>
-        <p>Create your first test plan to get started with testing</p>
-        <button class="btn btn-primary" (click)="createTestPlan()">
-          Create Test Plan
-        </button>
-      </div>
-    </div>
-  `
+    `
 })
 export class TestPlanListComponent implements OnInit {
   testPlans: TestPlan[] = [];

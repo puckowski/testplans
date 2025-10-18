@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
-import { CommonModule } from '@angular/common';
+
 import { provideRouter, Router, RouterOutlet, Routes } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { TestPlanListComponent } from './components/test-plan-list/test-plan-list.component';
@@ -12,7 +12,7 @@ import { TestPlanWithCasesComponent } from './components/test-plan-execute/test-
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet],
+  imports: [RouterOutlet],
   template: `
     <div class="app">
       <nav class="navbar">

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { TestPlan } from '../../models/test-plan.model';
@@ -8,7 +8,7 @@ import { TestPlanService } from '../../services/test-plan.service';
 @Component({
   selector: 'app-test-plan-form',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
     <div class="container">
       <div class="form-header">
@@ -17,7 +17,7 @@ import { TestPlanService } from '../../services/test-plan.service';
           ← Back
         </button>
       </div>
-
+    
       <form class="form" (ngSubmit)="onSubmit()" #testPlanForm="ngForm">
         <div class="form-group">
           <label for="name">Name *</label>
@@ -29,9 +29,9 @@ import { TestPlanService } from '../../services/test-plan.service';
             required
             class="form-control"
             placeholder="Enter test plan name"
-          />
+            />
         </div>
-
+    
         <div class="form-group">
           <label for="description">Description</label>
           <textarea
@@ -43,7 +43,7 @@ import { TestPlanService } from '../../services/test-plan.service';
             placeholder="Enter test plan description"
           ></textarea>
         </div>
-
+    
         <div class="form-group">
           <label for="status">Status *</label>
           <select
@@ -52,28 +52,32 @@ import { TestPlanService } from '../../services/test-plan.service';
             [(ngModel)]="testPlan.status"
             required
             class="form-control"
-          >
+            >
             <option value="DRAFT">Draft</option>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
         </div>
-
+    
         <div class="form-group">
           <label>Tags</label>
-          <div *ngFor="let tag of testPlan.tagList; let i = index" class="tag-input-group" style="display: flex; gap: 0.5em; margin-bottom: 0.5em;">
-            <input
-              type="text"
-              [(ngModel)]="testPlan.tagList[i].tag"
-              name="tag-{{i}}"
-              class="form-control"
-              placeholder="Enter tag"
-            />
-            <button type="button" (click)="removeTag(i)" class="btn btn-sm btn-outline-danger" *ngIf="testPlan.tagList.length > 0">Remove</button>
-          </div>
+          @for (tag of testPlan.tagList; track tag; let i = $index) {
+            <div class="tag-input-group" style="display: flex; gap: 0.5em; margin-bottom: 0.5em;">
+              <input
+                type="text"
+                [(ngModel)]="testPlan.tagList[i].tag"
+                name="tag-{{i}}"
+                class="form-control"
+                placeholder="Enter tag"
+                />
+              @if (testPlan.tagList.length > 0) {
+                <button type="button" (click)="removeTag(i)" class="btn btn-sm btn-outline-danger">Remove</button>
+              }
+            </div>
+          }
           <button type="button" (click)="addTag()" class="btn btn-outline-primary btn-sm">Add Tag</button>
         </div>
-        
+    
         <div class="form-actions">
           <button type="submit" class="btn btn-primary" [disabled]="!testPlanForm.form.valid">
             {{ isEditMode ? 'Update' : 'Create' }} Test Plan
@@ -84,7 +88,7 @@ import { TestPlanService } from '../../services/test-plan.service';
         </div>
       </form>
     </div>
-  `
+    `
 })
 export class TestPlanFormComponent implements OnInit {
   testPlan: TestPlan = {

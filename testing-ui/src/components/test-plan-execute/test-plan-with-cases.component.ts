@@ -10,116 +10,125 @@ import { tagToColor, contrastingForeground } from '../../utils/color.util';
     standalone: true,
     imports: [CommonModule],
     template: `
-    <div class="container" *ngIf="testPlan">
-      <div class="header">
-        <div class="header-left">
-          <button class="btn btn-outline" (click)="goBack()">
-            ← Back
-          </button>
-          <h1>{{ testPlan.name }}</h1>
-        </div>
-        <div class="header-right">
-          <button class="btn btn-outline" (click)="editTestPlan()">
-            Edit Plan
-          </button>
-        </div>
-      </div>
-
-      <div class="plan-info" *ngIf="testPlan">
-        <div class="info-card">
-          <h3>Plan Information</h3>
-          <div class="info-grid">
-            <div class="info-item">
-              <label>Status</label>
-              <span class="status-badge" [class]="'status-' + testPlan.status.toLowerCase()">
-                {{ testPlan.status }}
-              </span>
-            </div>
-            <div class="info-item">
-              <label>Description</label>
-              <p>{{ testPlan.description || 'No description provided' }}</p>
-            </div>
+    @if (testPlan) {
+      <div class="container">
+        <div class="header">
+          <div class="header-left">
+            <button class="btn btn-outline" (click)="goBack()">
+              ← Back
+            </button>
+            <h1>{{ testPlan.name }}</h1>
           </div>
-          <div class="info-item">
-            <label>Tags</label>
-            <div class="single-column">
-              <div *ngFor="let tag of testPlan.tagList">
-                <span class="tag-badge"
-                  [style.backgroundColor]="tagToColor(tag.tag)"
-                  [style.color]="contrastingForeground(tag.tag)">
-                  {{ tag.tag }}
-                </span>
+          <div class="header-right">
+            <button class="btn btn-outline" (click)="editTestPlan()">
+              Edit Plan
+            </button>
+          </div>
+        </div>
+        @if (testPlan) {
+          <div class="plan-info">
+            <div class="info-card">
+              <h3>Plan Information</h3>
+              <div class="info-grid">
+                <div class="info-item">
+                  <label>Status</label>
+                  <span class="status-badge" [class]="'status-' + testPlan.status.toLowerCase()">
+                    {{ testPlan.status }}
+                  </span>
+                </div>
+                <div class="info-item">
+                  <label>Description</label>
+                  <p>{{ testPlan.description || 'No description provided' }}</p>
+                </div>
+              </div>
+              <div class="info-item">
+                <label>Tags</label>
+                <div class="single-column">
+                  @for (tag of testPlan.tagList; track tag) {
+                    <div>
+                      <span class="tag-badge"
+                        [style.backgroundColor]="tagToColor(tag.tag)"
+                        [style.color]="contrastingForeground(tag.tag)">
+                        {{ tag.tag }}
+                      </span>
+                    </div>
+                  }
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="test-cases-section">
-        <div class="section-header">
-          <h2>Test Cases ({{ testPlan.testCases?.length || 0 }})</h2>
-          <button class="btn btn-primary" (click)="createTestCase()">
-            <i class="icon">+</i> Add Test Case
-          </button>
-        </div>
-
-        <div class="test-cases-grid" *ngIf="testPlan?.testCases && testPlan.testCases!.length > 0">
-          <div class="test-case-card" *ngFor="let testCase of testPlan.testCases" [class.collapsed]="isCollapsed(testCase.id!)">
-            <div class="test-case-header">
-                <div class="header-left">
-                    <input
+        }
+        <div class="test-cases-section">
+          <div class="section-header">
+            <h2>Test Cases ({{ testPlan.testCases?.length || 0 }})</h2>
+            <button class="btn btn-primary" (click)="createTestCase()">
+              <i class="icon">+</i> Add Test Case
+            </button>
+          </div>
+          @if (testPlan?.testCases && testPlan.testCases!.length > 0) {
+            <div class="test-cases-grid">
+              @for (testCase of testPlan.testCases; track testCase) {
+                <div class="test-case-card" [class.collapsed]="isCollapsed(testCase.id!)">
+                  <div class="test-case-header">
+                    <div class="header-left">
+                      <input
                         type="checkbox"
                         [checked]="isCollapsed(testCase.id!)"
                         (change)="toggleCollapse(testCase.id!)"
                         title="Collapse/Expand"
-                    />
-                    <h4>{{ testCase.name }}</h4>
+                        />
+                        <h4>{{ testCase.name }}</h4>
+                      </div>
+                      <div class="test-case-meta">
+                        <span class="priority-badge" [class]="'priority-' + testCase.priority.toLowerCase()">
+                          {{ testCase.priority }}
+                        </span>
+                        <span class="status-badge" [class]="'status-' + testCase.status.toLowerCase()">
+                          {{ testCase.status }}
+                        </span>
+                      </div>
                     </div>
-                    <div class="test-case-meta">
-                    <span class="priority-badge" [class]="'priority-' + testCase.priority.toLowerCase()">
-                        {{ testCase.priority }}
-                    </span>
-                    <span class="status-badge" [class]="'status-' + testCase.status.toLowerCase()">
-                        {{ testCase.status }}
-                    </span>
-                    </div>
-                </div>
-
-                <div class="test-case-body" *ngIf="!isCollapsed(testCase.id!)">
-                    <p><strong>Description:</strong> {{ testCase.description }}</p>
-                    <p><strong>Steps:</strong> {{ testCase.steps }}</p>
-                    <p><strong>Expected Result:</strong> {{ testCase.expectedResult }}</p>
-                    <p><strong>Test Plan ID:</strong> {{ testCase.testPlanId ?? '—' }}</p>
-                    <p><strong>Created:</strong> {{ testCase.createdDate | date: 'short' }}</p>
-                    <p><strong>Updated:</strong> {{ testCase.updatedDate | date: 'short' }}</p>
-
-                    <div class="test-case-actions">
-                    <button class="btn btn-sm btn-outline" (click)="editTestCase(testCase.id!)">
-                        Edit
-                    </button>
-                    <button class="btn btn-sm btn-danger" (click)="deleteTestCase(testCase.id!)">
-                        Delete
-                    </button>
-                    </div>
-                </div>
-
-                <div class="test-case-body" *ngIf="isCollapsed(testCase.id!)">
-                    Reviewed
-                </div>
-            </div>
+                    @if (!isCollapsed(testCase.id!)) {
+                      <div class="test-case-body">
+                        <p><strong>Description:</strong> {{ testCase.description }}</p>
+                        <p><strong>Steps:</strong> {{ testCase.steps }}</p>
+                        <p><strong>Expected Result:</strong> {{ testCase.expectedResult }}</p>
+                        <p><strong>Test Plan ID:</strong> {{ testCase.testPlanId ?? '—' }}</p>
+                        <p><strong>Created:</strong> {{ testCase.createdDate | date: 'short' }}</p>
+                        <p><strong>Updated:</strong> {{ testCase.updatedDate | date: 'short' }}</p>
+                        <div class="test-case-actions">
+                          <button class="btn btn-sm btn-outline" (click)="editTestCase(testCase.id!)">
+                            Edit
+                          </button>
+                          <button class="btn btn-sm btn-danger" (click)="deleteTestCase(testCase.id!)">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    }
+                    @if (isCollapsed(testCase.id!)) {
+                      <div class="test-case-body">
+                        Reviewed
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            @if (!testPlan?.testCases || testPlan.testCases!.length === 0) {
+              <div class="empty-state">
+                <div class="empty-icon">🧪</div>
+                <h3>No Test Cases Yet</h3>
+                <p>Add test cases to start testing this plan</p>
+                <button class="btn btn-primary" (click)="createTestCase()">
+                  Add Test Case
+                </button>
+              </div>
+            }
+          </div>
         </div>
-
-        <div class="empty-state" *ngIf="!testPlan?.testCases || testPlan.testCases!.length === 0">
-          <div class="empty-icon">🧪</div>
-          <h3>No Test Cases Yet</h3>
-          <p>Add test cases to start testing this plan</p>
-          <button class="btn btn-primary" (click)="createTestCase()">
-            Add Test Case
-          </button>
-        </div>
-      </div>
-    </div>
-  `
+      }
+    `
 })
 export class TestPlanWithCasesComponent implements OnInit {
     testPlan?: TestPlan;

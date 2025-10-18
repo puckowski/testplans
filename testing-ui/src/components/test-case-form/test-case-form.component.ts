@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { TestCase } from '../../models/test-plan.model';
@@ -8,7 +8,7 @@ import { TestPlanService } from '../../services/test-plan.service';
 @Component({
   selector: 'app-test-case-form',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
     <div class="container">
       <div class="form-header">

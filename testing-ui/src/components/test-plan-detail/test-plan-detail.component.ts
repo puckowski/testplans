@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Router, ActivatedRoute } from '@angular/router';
 import { TestPlan, TestCase } from '../../models/test-plan.model';
 import { TestPlanService } from '../../services/test-plan.service';
@@ -9,7 +9,7 @@ import { contrastingForeground } from '../../utils/color.util';
 @Component({
   selector: 'app-test-plan-detail',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <div class="container">
       <div class="header">
@@ -28,37 +28,41 @@ import { contrastingForeground } from '../../utils/color.util';
           </button>
         </div>
       </div>
-
-      <div class="plan-info" *ngIf="testPlan">
-        <div class="info-card">
-          <h3>Plan Information</h3>
-          <div class="info-grid">
-            <div class="info-item">
-              <label>Status</label>
-              <span class="status-badge" [class]="'status-' + testPlan.status.toLowerCase()">
-                {{ testPlan.status }}
-              </span>
+    
+      @if (testPlan) {
+        <div class="plan-info">
+          <div class="info-card">
+            <h3>Plan Information</h3>
+            <div class="info-grid">
+              <div class="info-item">
+                <label>Status</label>
+                <span class="status-badge" [class]="'status-' + testPlan.status.toLowerCase()">
+                  {{ testPlan.status }}
+                </span>
+              </div>
+              <div class="info-item">
+                <label>Description</label>
+                <p>{{ testPlan.description || 'No description provided' }}</p>
+              </div>
             </div>
             <div class="info-item">
-              <label>Description</label>
-              <p>{{ testPlan.description || 'No description provided' }}</p>
-            </div>
-          </div>
-          <div class="info-item">
-            <label>Tags</label>
-            <div class="single-column">
-              <div *ngFor="let tag of testPlan.tagList">
-                <div>
-                  <span class="tag-badge" [class]="'tag-' + tag.tag.toLowerCase()" [style.backgroundColor]="tagToColor(tag.tag)" [style.color]="contrastingForeground(tag.tag)">
-                    {{ tag.tag }}
-                  </span>
-                </div>
+              <label>Tags</label>
+              <div class="single-column">
+                @for (tag of testPlan.tagList; track tag) {
+                  <div>
+                    <div>
+                      <span class="tag-badge" [class]="'tag-' + tag.tag.toLowerCase()" [style.backgroundColor]="tagToColor(tag.tag)" [style.color]="contrastingForeground(tag.tag)">
+                        {{ tag.tag }}
+                      </span>
+                    </div>
+                  </div>
+                }
               </div>
             </div>
           </div>
         </div>
-      </div>
-
+      }
+    
       <div class="test-cases-section">
         <div class="section-header">
           <h2>Test Cases ({{ testCases.length || 0 }})</h2>
@@ -66,45 +70,51 @@ import { contrastingForeground } from '../../utils/color.util';
             <i class="icon">+</i> Add Test Case
           </button>
         </div>
-
-        <div class="test-cases-grid" *ngIf="testCases.length > 0">
-          <div class="test-case-card" *ngFor="let testCase of testCases">
-            <div class="test-case-header">
-              <h4>{{ testCase.name }}</h4>
-              <div class="test-case-meta">
-                <span class="priority-badge" [class]="'priority-' + testCase.priority.toLowerCase()">
-                  {{ testCase.priority }}
-                </span>
-                <span class="status-badge" [class]="'status-' + testCase.status.toLowerCase()">
-                  {{ testCase.status }}
-                </span>
+    
+        @if (testCases.length > 0) {
+          <div class="test-cases-grid">
+            @for (testCase of testCases; track testCase) {
+              <div class="test-case-card">
+                <div class="test-case-header">
+                  <h4>{{ testCase.name }}</h4>
+                  <div class="test-case-meta">
+                    <span class="priority-badge" [class]="'priority-' + testCase.priority.toLowerCase()">
+                      {{ testCase.priority }}
+                    </span>
+                    <span class="status-badge" [class]="'status-' + testCase.status.toLowerCase()">
+                      {{ testCase.status }}
+                    </span>
+                  </div>
+                </div>
+                <div class="test-case-body">
+                  <p>{{ testCase.description }}</p>
+                  <div class="test-case-actions">
+                    <button class="btn btn-sm btn-outline" (click)="editTestCase(testCase.id!)">
+                      Edit
+                    </button>
+                    <button class="btn btn-sm btn-danger" (click)="deleteTestCase(testCase.id!)">
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="test-case-body">
-              <p>{{ testCase.description }}</p>
-              <div class="test-case-actions">
-                <button class="btn btn-sm btn-outline" (click)="editTestCase(testCase.id!)">
-                  Edit
-                </button>
-                <button class="btn btn-sm btn-danger" (click)="deleteTestCase(testCase.id!)">
-                  Delete
-                </button>
-              </div>
-            </div>
+            }
           </div>
-        </div>
-
-        <div class="empty-state" *ngIf="testCases.length === 0">
-          <div class="empty-icon">🧪</div>
-          <h3>No Test Cases Yet</h3>
-          <p>Add test cases to start testing this plan</p>
-          <button class="btn btn-primary" (click)="createTestCase()">
-            Add Test Case
-          </button>
-        </div>
+        }
+    
+        @if (testCases.length === 0) {
+          <div class="empty-state">
+            <div class="empty-icon">🧪</div>
+            <h3>No Test Cases Yet</h3>
+            <p>Add test cases to start testing this plan</p>
+            <button class="btn btn-primary" (click)="createTestCase()">
+              Add Test Case
+            </button>
+          </div>
+        }
       </div>
     </div>
-  `
+    `
 })
 export class TestPlanDetailComponent implements OnInit {
   testPlan?: TestPlan;

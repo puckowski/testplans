@@ -334,6 +334,54 @@ public class TestCaseController {
         }
     }
 
+    @GetMapping(value = "/testplans/{planId}/testcases", params = "bench")
+    public Map<String, Object> benchmarkGetTestCasesByPlan(
+            @PathVariable Long planId,
+            @RequestParam(name = "bench", defaultValue = "100") int iterations
+    ) throws SQLException {
+        String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps " +
+                "FROM test_case WHERE test_plan_id = ?";
+
+        List<TestCaseDTO> lastResult = null;
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            // Warmup: run a few iterations but don't count them
+            int warmup = Math.min(10, Math.max(1, iterations / 10));
+            for (int i = 0; i < warmup; i++) {
+                ps.setLong(1, planId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) { /* consume */ }
+                }
+            }
+
+            long start = System.nanoTime();
+            for (int i = 0; i < iterations; i++) {
+                ps.setLong(1, planId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    List<TestCaseDTO> result = new ArrayList<>();
+                    while (rs.next()) {
+                        result.add(toTestCaseDTO(rs));
+                    }
+                    lastResult = result;
+                }
+            }
+            long end = System.nanoTime();
+
+            double totalMs = (end - start) / 1_000_000.0;
+            double avgMs = totalMs / iterations;
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("iterations", iterations);
+            response.put("total_time_ms", totalMs);
+            response.put("avg_time_ms_per_query", avgMs);
+            response.put("result_count", lastResult != null ? lastResult.size() : 0);
+            response.put("sample_result", lastResult);
+            return response;
+        }
+    }
+
     @PostMapping("/testplans/{planId}/testcases")
     public TestCaseDTO createTestCase(@PathVariable Long planId, @RequestBody TestCaseDTO dto) throws SQLException {
         String sql = "INSERT INTO test_case (test_plan_id, name, description, status, expected_result, priority, steps) " +
