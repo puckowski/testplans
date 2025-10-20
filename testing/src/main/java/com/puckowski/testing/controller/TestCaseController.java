@@ -4,6 +4,8 @@ import com.puckowski.testing.dto.TestPlanCountDTO;
 import com.puckowski.testing.dto.TestPlanDTO;
 import com.puckowski.testing.dto.TestCaseDTO;
 import com.puckowski.testing.dto.TestTagDTO;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
 import javax.sql.DataSource;
@@ -23,7 +25,18 @@ public class TestCaseController {
 
     // ------ CRUD for Test Plans ------
 
+    @CacheEvict(value = "testPlanCount", allEntries = true)
+    private void evictTestPlanCountCache() {
+
+    }
+
+    @CacheEvict(value = "testPlans", allEntries = true)
+    private void evictTestPlanCache() {
+
+    }
+
     @GetMapping("/testplans/count")
+    @Cacheable(cacheNames = "testPlanCount")
     public TestPlanCountDTO getTestPlanCount(
             @RequestParam(required = false) String tag
     ) throws SQLException {
@@ -86,6 +99,7 @@ public class TestCaseController {
 
 
     @GetMapping("/testplans")
+    @Cacheable(cacheNames = "testPlans")
     public List<TestPlanDTO> getAllTestPlans(
             @RequestParam(required = false, name = "after") Long after,
             @RequestParam(required = false, name = "filter") String filter,
@@ -234,6 +248,8 @@ public class TestCaseController {
                 throw ex;
             } finally {
                 conn.setAutoCommit(true);
+                evictTestPlanCache();
+                evictTestPlanCountCache();
             }
         }
     }
@@ -288,6 +304,8 @@ public class TestCaseController {
                 throw ex;
             } finally {
                 conn.setAutoCommit(true); // Restore autocommit for connection pool
+                evictTestPlanCache();
+                evictTestPlanCountCache();
             }
         }
     }
@@ -300,6 +318,8 @@ public class TestCaseController {
             ps.setLong(1, id);
             ps.executeUpdate();
         }
+        evictTestPlanCache();
+        evictTestPlanCountCache();
     }
 
     // ------ CRUD for Test Cases ------
