@@ -7,7 +7,6 @@ import { TestPlanListComponent } from './components/test-plan-list/test-plan-lis
 import { TestPlanFormComponent } from './components/test-plan-form/test-plan-form.component';
 import { TestPlanDetailComponent } from './components/test-plan-detail/test-plan-detail.component';
 import { TestCaseFormComponent } from './components/test-case-form/test-case-form.component';
-import { TestPlanWithCasesComponent } from './components/test-plan-execute/test-plan-with-cases.component';
 
 @Component({
   selector: 'app-root',
@@ -51,7 +50,7 @@ const routes: Routes = [
   { path: 'test-cases/:testCaseId/edit', component: TestCaseFormComponent },
   {
     path: 'test-plans/:id/with-cases',
-    component: TestPlanWithCasesComponent
+    loadComponent: () => import('./components/test-plan-execute/test-plan-with-cases.component').then(m => m.TestPlanWithCasesComponent)
   }
 ];
 

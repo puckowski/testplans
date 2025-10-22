@@ -65,7 +65,7 @@ import { tagToColor, contrastingForeground } from '../../utils/color.util';
               <i class="icon">+</i> Add Test Case
             </button>
           </div>
-          @if (testPlan?.testCases && testPlan.testCases!.length > 0) {
+          @if (testPlan.testCases && testPlan.testCases!.length > 0) {
             <div class="test-cases-grid">
               @for (testCase of testPlan.testCases; track testCase) {
                 <div class="test-case-card" [class.collapsed]="isCollapsed(testCase.id!)">
@@ -115,7 +115,7 @@ import { tagToColor, contrastingForeground } from '../../utils/color.util';
                 }
               </div>
             }
-            @if (!testPlan?.testCases || testPlan.testCases!.length === 0) {
+            @if (!testPlan.testCases || testPlan.testCases!.length === 0) {
               <div class="empty-state">
                 <div class="empty-icon">🧪</div>
                 <h3>No Test Cases Yet</h3>
