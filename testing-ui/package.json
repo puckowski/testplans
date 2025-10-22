@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build"
+    "build": "cross-env NG_BUILD_OPTIMIZE_CHUNKS=1 ng build --configuration production"
   },
   "dependencies": {
     "@angular/animations": "^20.0.0",
@@ -22,6 +22,7 @@
     "@angular/build": "^20.0.0",
     "@angular/cli": "^20.0.0",
     "@angular/compiler-cli": "^20.0.0",
+    "cross-env": "^10.1.0",
     "typescript": "^5.8.2"
   }
 }
