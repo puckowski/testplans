@@ -1,9 +1,6 @@
 package com.puckowski.testing.controller;
 
-import com.puckowski.testing.dto.TestPlanCountDTO;
-import com.puckowski.testing.dto.TestPlanDTO;
-import com.puckowski.testing.dto.TestCaseDTO;
-import com.puckowski.testing.dto.TestTagDTO;
+import com.puckowski.testing.dto.*;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
@@ -73,7 +71,7 @@ public class TestCaseController {
     public TestPlanDTO getTestPlanWithTestCases(@PathVariable Long id) throws SQLException {
         TestPlanDTO plan = getTestPlan(id);
 
-        String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps FROM test_case WHERE test_plan_id = ?";
+    String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps, duration FROM test_case WHERE test_plan_id = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -326,7 +324,7 @@ public class TestCaseController {
 
     @GetMapping("/testplans/{planId}/testcases")
     public List<TestCaseDTO> getTestCasesByPlan(@PathVariable Long planId) throws SQLException {
-        String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps FROM test_case WHERE test_plan_id = ?";
+    String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps, duration FROM test_case WHERE test_plan_id = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, planId);
@@ -343,7 +341,7 @@ public class TestCaseController {
 
     @GetMapping("/testcases/{id}")
     public TestCaseDTO getTestCase(@PathVariable Long id) throws SQLException {
-        String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps FROM test_case WHERE id = ?";
+    String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps, duration FROM test_case WHERE id = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -359,8 +357,8 @@ public class TestCaseController {
             @PathVariable Long planId,
             @RequestParam(name = "bench", defaultValue = "100") int iterations
     ) throws SQLException {
-        String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps " +
-                "FROM test_case WHERE test_plan_id = ?";
+    String sql = "SELECT id, test_plan_id, name, description, status, created_at, expected_result, priority, steps, duration " +
+        "FROM test_case WHERE test_plan_id = ?";
 
         List<TestCaseDTO> lastResult = null;
 
@@ -404,8 +402,8 @@ public class TestCaseController {
 
     @PostMapping("/testplans/{planId}/testcases")
     public TestCaseDTO createTestCase(@PathVariable Long planId, @RequestBody TestCaseDTO dto) throws SQLException {
-        String sql = "INSERT INTO test_case (test_plan_id, name, description, status, expected_result, priority, steps) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    String sql = "INSERT INTO test_case (test_plan_id, name, description, status, expected_result, priority, steps, duration) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -416,6 +414,7 @@ public class TestCaseController {
                 ps.setString(5, dto.expectedResult());
                 ps.setString(6, dto.priority());
                 ps.setString(7, dto.steps());
+                if (dto.duration() != null) ps.setInt(8, dto.duration()); else ps.setNull(8, Types.INTEGER);
                 ps.executeUpdate();
 
                 long id = fetchLastInsertId(conn);  // ← replaces getGeneratedKeys()
@@ -433,7 +432,7 @@ public class TestCaseController {
 
     @PutMapping("/testcases/{id}")
     public TestCaseDTO updateTestCase(@PathVariable Long id, @RequestBody TestCaseDTO dto) throws SQLException {
-        String sql = "UPDATE test_case SET name = ?, description = ?, status = ?, expected_result = ?, priority = ?, steps = ? WHERE id = ?";
+        String sql = "UPDATE test_case SET name = ?, description = ?, status = ?, expected_result = ?, priority = ?, steps = ?, duration = ? WHERE id = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, dto.name());
@@ -442,7 +441,8 @@ public class TestCaseController {
             ps.setString(4, dto.expectedResult());
             ps.setString(5, dto.priority());
             ps.setString(6, dto.steps());
-            ps.setLong(7, id);
+            if (dto.duration() != null) ps.setInt(7, dto.duration()); else ps.setNull(7, Types.INTEGER);
+            ps.setLong(8, id);
             int updated = ps.executeUpdate();
             if (updated > 0) return getTestCase(id);
             else throw new NoSuchElementException("TestCase not found");
@@ -452,6 +452,87 @@ public class TestCaseController {
     @DeleteMapping("/testcases/{id}")
     public void deleteTestCase(@PathVariable Long id) throws SQLException {
         String sql = "DELETE FROM test_case WHERE id = ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            ps.executeUpdate();
+        }
+    }
+
+    // ------ CRUD for Test Plan Executions ------
+
+    @GetMapping("/testplans/{planId}/executions")
+    public List<TestPlanExecutionDTO> getExecutionsByPlan(@PathVariable Long planId) throws SQLException {
+        String sql = "SELECT id, test_plan_id, status, started_at, finished_at, result_notes, created_at, updated_at FROM test_plan_execution WHERE test_plan_id = ? ORDER BY id DESC";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, planId);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<TestPlanExecutionDTO> result = new ArrayList<>();
+                while (rs.next()) {
+                    result.add(toTestPlanExecutionDTO(rs));
+                }
+                return result;
+            }
+        }
+    }
+
+    @PostMapping("/testplans/{planId}/executions")
+    public TestPlanExecutionDTO createExecution(@PathVariable Long planId, @RequestBody TestPlanExecutionDTO dto) throws SQLException {
+        String sql = "INSERT INTO test_plan_execution (test_plan_id, status, started_at, finished_at, result_notes) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = dataSource.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setLong(1, planId);
+                ps.setString(2, dto.status());
+                ps.setTimestamp(3, parseTimestamp(dto.startedAt()));
+                ps.setTimestamp(4, parseTimestamp(dto.finishedAt()));
+                ps.setString(5, dto.resultNotes());
+                ps.executeUpdate();
+
+                long id = fetchLastInsertId(conn);
+                conn.commit();
+                return getExecution(id);
+            } catch (Exception ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+    }
+
+    @GetMapping("/executions/{id}")
+    public TestPlanExecutionDTO getExecution(@PathVariable Long id) throws SQLException {
+        String sql = "SELECT id, test_plan_id, status, started_at, finished_at, result_notes, created_at, updated_at FROM test_plan_execution WHERE id = ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return toTestPlanExecutionDTO(rs);
+                throw new NoSuchElementException("Execution not found");
+            }
+        }
+    }
+
+    @PutMapping("/executions/{id}")
+    public TestPlanExecutionDTO updateExecution(@PathVariable Long id, @RequestBody TestPlanExecutionDTO dto) throws SQLException {
+        String sql = "UPDATE test_plan_execution SET status = ?, finished_at = ?, result_notes = ? WHERE id = ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, dto.status());
+            ps.setTimestamp(2, parseTimestamp(dto.finishedAt()));
+            ps.setString(3, dto.resultNotes());
+            ps.setLong(4, id);
+            int updated = ps.executeUpdate();
+            if (updated > 0) return getExecution(id);
+            throw new NoSuchElementException("Execution not found");
+        }
+    }
+
+    @DeleteMapping("/executions/{id}")
+    public void deleteExecution(@PathVariable Long id) throws SQLException {
+        String sql = "DELETE FROM test_plan_execution WHERE id = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -483,7 +564,8 @@ public class TestCaseController {
                 getLocalDateTime(rs, 6),
                 rs.getString(7),
                 rs.getString(8),
-                rs.getString(9)
+                rs.getString(9),
+                rs.getObject(10) == null ? null : rs.getInt(10)
         );
     }
 
@@ -495,8 +577,105 @@ public class TestCaseController {
         );
     }
 
+    private TestPlanExecutionDTO toTestPlanExecutionDTO(ResultSet rs) throws SQLException {
+        // id, test_plan_id, status, started_at, finished_at, result_notes, created_at, updated_at
+        return new TestPlanExecutionDTO(
+                rs.getInt(1),
+                rs.getInt(2),
+                rs.getString(3),
+                normalizeDbObjectToIso(rs.getObject(4)),
+                normalizeDbObjectToIso(rs.getObject(5)),
+                rs.getString(6),
+                normalizeDbObjectToIso(rs.getObject(7)),
+                normalizeDbObjectToIso(rs.getObject(8))
+        );
+    }
+
     private LocalDateTime getLocalDateTime(ResultSet rs, Integer column) throws SQLException {
         var val = rs.getObject(column);
         return val == null ? null : LocalDateTime.parse(val.toString().replace(" ", "T"));
+    }
+
+    private LocalDateTime getLocalDateTime(ResultSet rs, String column) throws SQLException {
+        var val = rs.getObject(column);
+        return val == null ? null : LocalDateTime.parse(val.toString().replace(" ", "T"));
+    }
+
+    /**
+     * Parse a variety of incoming timestamp string representations into java.sql.Timestamp.
+     * Accepts ISO-like strings with 'T' or space, optional fractional seconds.
+     */
+    private Timestamp parseTimestamp(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        if (t.isEmpty()) return null;
+        // normalize space to 'T' for LocalDateTime parsing
+        if (!t.contains("T") && t.contains(" ")) {
+            t = t.replace(' ', 'T');
+        }
+        try {
+            LocalDateTime ldt = LocalDateTime.parse(t);
+            return Timestamp.valueOf(ldt);
+        } catch (Exception e) {
+            // Fallback: try Timestamp.valueOf with space-separated format
+            try {
+                String alt = t.replace('T', ' ');
+                return Timestamp.valueOf(alt);
+            } catch (Exception ex) {
+                // Could not parse; return null to let DB insert null
+                return null;
+            }
+        }
+    }
+
+    private String normalizeDbStringToIso(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        if (t.isEmpty()) return null;
+        // If DB uses space separator, convert to 'T'
+        t = t.replace(' ', 'T');
+        // Remove fractional seconds if present
+        int dot = t.indexOf('.');
+        if (dot > 0) {
+            t = t.substring(0, dot);
+        }
+        return t;
+    }
+
+    private String normalizeDbObjectToIso(Object obj) {
+        if (obj == null) return null;
+        // If the DB returned a java.sql.Blob (driver stored text as blob), read bytes and decode as UTF-8
+        if (obj instanceof java.sql.Blob) {
+            try {
+                java.sql.Blob b = (java.sql.Blob) obj;
+                long len = b.length();
+                if (len <= 0) return null;
+                int intLen = (int) Math.min(len, Integer.MAX_VALUE);
+                byte[] bytes = b.getBytes(1, intLen);
+                String s = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+                return normalizeDbStringToIso(s);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        // If the DB returned a byte[] (BLOB stored text), decode as UTF-8
+        if (obj instanceof byte[]) {
+            try {
+                String s = new String((byte[]) obj, java.nio.charset.StandardCharsets.UTF_8);
+                return normalizeDbStringToIso(s);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        // For other types, use toString()
+        return normalizeDbStringToIso(obj.toString());
+    }
+
+    private String formatForSql(String s) {
+        if (s == null) return null;
+        Timestamp ts = parseTimestamp(s);
+        if (ts == null) return null;
+        // Format as 'yyyy-MM-dd HH:mm:ss' to match CURRENT_TIMESTAMP style and avoid storing binary
+        return ts.toLocalDateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 }

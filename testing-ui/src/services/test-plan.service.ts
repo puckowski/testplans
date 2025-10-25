@@ -65,4 +65,21 @@ export class TestPlanService {
   deleteTestCase(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/testcases/${id}`);
   }
+
+  // Test Plan Execution operations
+  getExecutions(planId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/testplans/${planId}/executions`);
+  }
+
+  createExecution(planId: number, execution: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/testplans/${planId}/executions`, execution);
+  }
+
+  updateExecution(id: number, execution: any): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/executions/${id}`, execution);
+  }
+
+  deleteExecution(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/executions/${id}`);
+  }
 }

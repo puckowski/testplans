@@ -104,6 +104,19 @@ import { TestPlanService } from '../../services/test-plan.service';
           </div>
         </div>
 
+        <div class="form-group">
+          <label for="duration">Duration (minutes)</label>
+          <input
+            type="number"
+            id="duration"
+            name="duration"
+            [(ngModel)]="testCase.duration"
+            class="form-control"
+            min="0"
+            placeholder="Optional: expected duration in minutes"
+          />
+        </div>
+
         <div class="form-actions">
           <button type="submit" class="btn btn-primary" [disabled]="!testCaseForm.form.valid">
             {{ isEditMode ? 'Update' : 'Create' }} Test Case
@@ -125,6 +138,7 @@ export class TestCaseFormComponent implements OnInit {
     priority: 'MEDIUM',
     status: 'PENDING'
   };
+  
   isEditMode = false;
   testCaseId?: number;
   testPlanId?: number;

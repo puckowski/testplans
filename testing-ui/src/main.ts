@@ -1,8 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 
 import { provideRouter, Router, RouterOutlet, Routes } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { TestPlanListComponent } from './components/test-plan-list/test-plan-list.component';
 import { TestPlanFormComponent } from './components/test-plan-form/test-plan-form.component';
 import { TestPlanDetailComponent } from './components/test-plan-detail/test-plan-detail.component';
@@ -11,7 +14,7 @@ import { TestCaseFormComponent } from './components/test-case-form/test-case-for
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, CommonModule, FormsModule],
   template: `
     <div class="app">
       <nav class="navbar">
@@ -25,7 +28,7 @@ import { TestCaseFormComponent } from './components/test-case-form/test-case-for
           </div>
         </div>
       </nav>
-      
+
       <main class="main-content">
         <router-outlet></router-outlet>
       </main>
@@ -33,7 +36,7 @@ import { TestCaseFormComponent } from './components/test-case-form/test-case-for
   `
 })
 export class App {
-  constructor(private router: Router) { }
+  constructor(private router: Router, private http: HttpClient) { }
 
   navigateHome() {
     this.router.navigate(['/test-plans']);

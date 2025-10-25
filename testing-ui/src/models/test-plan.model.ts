@@ -26,6 +26,7 @@ export interface TestCase {
   testPlanId?: number;
   createdDate?: Date;
   updatedDate?: Date;
+  duration?: number;
 }
 
 export interface TestPlanCount {

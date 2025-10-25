@@ -5,13 +5,16 @@ import { TestPlan } from '../../models/test-plan.model';
 import { TestPlanService } from '../../services/test-plan.service';
 import { FormsModule } from '@angular/forms';
 import { contrastingForeground, tagToColor } from '../../utils/color.util';
+import { ReportWidgetComponent } from '../report-widget/report-widget.component';
 
 @Component({
   selector: 'app-test-plan-list',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, ReportWidgetComponent],
   template: `
     <div class="container">
+      <app-report-widget></app-report-widget>
+
       <div class="header">
         <h1>Test Plans</h1>
         <button class="btn btn-primary" (click)="createTestPlan()">
