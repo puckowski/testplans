@@ -70,6 +70,9 @@ export class ReportWidgetComponent implements OnInit {
     localStorage.removeItem('dashboardWidget');
     this.widget = { enabled: false };
     this.report = null;
+    try {
+      window.dispatchEvent(new CustomEvent('dashboardWidgetChanged', { detail: this.widget }));
+    } catch (e) { }
   }
 
   refreshWidget() {
