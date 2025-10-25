@@ -6,10 +6,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -25,10 +22,33 @@ public class ReportController {
         this.dataSource = dataSource;
     }
 
+    private Timestamp parseTimestamp(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        if (t.isEmpty()) return null;
+        // normalize space to 'T' for LocalDateTime parsing
+        if (!t.contains("T") && t.contains(" ")) {
+            t = t.replace(' ', 'T');
+        }
+        try {
+            LocalDateTime ldt = LocalDateTime.parse(t);
+            return Timestamp.valueOf(ldt);
+        } catch (Exception e) {
+            // Fallback: try Timestamp.valueOf with space-separated format
+            try {
+                String alt = t.replace('T', ' ');
+                return Timestamp.valueOf(alt);
+            } catch (Exception ex) {
+                // Could not parse; return null to let DB insert null
+                return null;
+            }
+        }
+    }
+
     /**
      * Returns a report that sums test case durations for a test plan across executions
      * that started and finished within the last month.
-     *
+     * <p>
      * The response contains:
      * - planId
      * - periodStart, periodEnd (SQL datetime strings)
@@ -50,8 +70,8 @@ public class ReportController {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(execCountSql)) {
             ps.setLong(1, planId);
-            ps.setString(2, periodStart);
-            ps.setString(3, periodEnd);
+            ps.setTimestamp(2, parseTimestamp(periodStart));
+            ps.setTimestamp(3, parseTimestamp(periodEnd));
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) executionCount = rs.getInt(1);
             }
