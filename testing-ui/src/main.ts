@@ -12,6 +12,7 @@ import { TestPlanDetailComponent } from './components/test-plan-detail/test-plan
 import { TestCaseFormComponent } from './components/test-case-form/test-case-form.component';
 import { ReportWidgetComponent } from './components/report-widget/report-widget.component';
 import { WidgetToggleComponent } from './components/widget-toggle/widget-toggle.component';
+import { UnknownRouteComponent } from './components/unknown-route/unknown-route.component';
 
 @Component({
   selector: 'app-root',
@@ -59,6 +60,8 @@ const routes: Routes = [
     path: 'test-plans/:id/with-cases',
     loadComponent: () => import('./components/test-plan-execute/test-plan-with-cases.component').then(m => m.TestPlanWithCasesComponent)
   }
+  ,
+  { path: '**', component: UnknownRouteComponent }
 ];
 
 bootstrapApplication(App, {
