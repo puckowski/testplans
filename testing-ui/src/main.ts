@@ -10,11 +10,13 @@ import { TestPlanListComponent } from './components/test-plan-list/test-plan-lis
 import { TestPlanFormComponent } from './components/test-plan-form/test-plan-form.component';
 import { TestPlanDetailComponent } from './components/test-plan-detail/test-plan-detail.component';
 import { TestCaseFormComponent } from './components/test-case-form/test-case-form.component';
+import { ReportWidgetComponent } from './components/report-widget/report-widget.component';
+import { WidgetToggleComponent } from './components/widget-toggle/widget-toggle.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, CommonModule, FormsModule],
+  imports: [RouterOutlet, CommonModule, FormsModule, WidgetToggleComponent],
   template: `
     <div class="app">
       <nav class="navbar">
@@ -25,6 +27,7 @@ import { TestCaseFormComponent } from './components/test-case-form/test-case-for
           </div>
           <div class="nav-links">
             <button class="nav-link" (click)="navigateHome()">Test Plans</button>
+            <app-widget-toggle></app-widget-toggle>
           </div>
         </div>
       </nav>
@@ -36,7 +39,8 @@ import { TestCaseFormComponent } from './components/test-case-form/test-case-for
   `
 })
 export class App {
-  constructor(private router: Router, private http: HttpClient) { }
+  constructor(private router: Router) {
+  }
 
   navigateHome() {
     this.router.navigate(['/test-plans']);

@@ -9,7 +9,7 @@ import { ReportService } from '../../services/report.service';
   imports: [CommonModule, FormsModule],
   template: `
     <section class="dashboard-widget" style="padding:12px;">
-      <details>
+      <details open>
         <summary style="cursor:pointer; font-weight:600;">Dashboard widget: Duration sum (last month)</summary>
         <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
           <label style="display:flex; gap:8px; align-items:center;">

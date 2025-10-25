@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 
 import { ActivatedRoute, Router } from '@angular/router';
 import { TestPlan } from '../../models/test-plan.model';
@@ -13,7 +13,9 @@ import { ReportWidgetComponent } from '../report-widget/report-widget.component'
   imports: [FormsModule, ReportWidgetComponent],
   template: `
     <div class="container">
-      <app-report-widget></app-report-widget>
+      @if (showReportWidget()) {
+        <app-report-widget></app-report-widget>
+      }
 
       <div class="header">
         <h1>Test Plans</h1>
@@ -106,27 +108,43 @@ export class TestPlanListComponent implements OnInit {
   // store a single previous cursor and the current 'after' cursor
   prev: number | null = null;
   after: number | null = null;
+  showReportWidget = signal<boolean>(false);
 
   constructor(
     private testPlanService: TestPlanService,
     private router: Router,
     private route: ActivatedRoute
-  ) { }
+  ) {
+    // listen for widget preference changes
+    try {
+      window.addEventListener('dashboardWidgetChanged', (e: any) => {
+        const detail = e?.detail;
+        this.showReportWidget.set(!!(detail && detail.enabled));
+      });
+    } catch (e) { }
+  }
 
   ngOnInit() {
     // Subscribe to query params to handle browser navigation & reload
     this.route.queryParams.subscribe(params => {
-  // Set defaults or use from params
-  this.pageSize = +params['per'] || 4;
-  this.searchTerm = params['filter'] || '';
-  const afterParam = params['after'];
-  const prevParam = params['prev'];
-  this.after = afterParam != null ? Number(afterParam) : null;
-  this.prev = prevParam != null ? Number(prevParam) : null;
+      // Set defaults or use from params
+      this.pageSize = +params['per'] || 4;
+      this.searchTerm = params['filter'] || '';
+      const afterParam = params['after'];
+      const prevParam = params['prev'];
+      this.after = afterParam != null ? Number(afterParam) : null;
+      this.prev = prevParam != null ? Number(prevParam) : null;
 
       // Load plans for current cursor
       this.loadTestPlans();
     });
+    try {
+      const raw = localStorage.getItem('dashboardWidget');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        this.showReportWidget.set(!!parsed.enabled);
+      }
+    } catch (e) { }
   }
 
   public tagToColor = tagToColor;
@@ -149,27 +167,27 @@ export class TestPlanListComponent implements OnInit {
   loadTestPlanCount() {
     this.testPlanService.getTestPlanCount(this.searchTerm).subscribe({
       next: (count) => {
-  // We keep count for informational purposes but keyset pagination doesn't use offsets
-  // Show only next/prev controls
-  // (no change to cursor stack here)
-  this.loadTestPlans();
+        // We keep count for informational purposes but keyset pagination doesn't use offsets
+        // Show only next/prev controls
+        // (no change to cursor stack here)
+        this.loadTestPlans();
       },
       error: (error) => console.error('Error loading test plan count:', error)
     });
   }
 
   filterTestPlans() {
-  this.after = null;
-  this.prev = null;
-  this.updateQueryParams();
+    this.after = null;
+    this.prev = null;
+    this.updateQueryParams();
   }
 
   public setSearchPlanFilter(tag: string) {
     this.searchTerm = tag;
-  // reset keyset pagination and update
-  this.after = null;
-  this.prev = null;
-  this.updateQueryParams();
+    // reset keyset pagination and update
+    this.after = null;
+    this.prev = null;
+    this.updateQueryParams();
   }
 
   private resetPagination() {
@@ -193,11 +211,11 @@ export class TestPlanListComponent implements OnInit {
     if (!this.testPlans || this.testPlans.length === 0) return;
     const last = this.testPlans[this.testPlans.length - 1];
     const lastId = last.id!;
-  // store previous cursor and set 'after' to lastId for next page
-  // preserve the first-page cursor in `prev` so users can jump back to the start with one click
-  if (this.prev == null) this.prev = this.after;
-  this.after = lastId;
-  this.updateQueryParams();
+    // store previous cursor and set 'after' to lastId for next page
+    // preserve the first-page cursor in `prev` so users can jump back to the start with one click
+    if (this.prev == null) this.prev = this.after;
+    this.after = lastId;
+    this.updateQueryParams();
   }
 
   // Navigate to previous page: pop cursor stack
