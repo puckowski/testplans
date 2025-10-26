@@ -35,7 +35,7 @@ import { NotesWidgetComponent } from '../misc-widgets/notes-widget.component';
 
   .palette { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; background: white; height: calc(100vh - 120px); overflow: auto; }
   .palette h3 { margin: 4px 0 10px; font-weight: 600; }
-  .card { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 8px; border: 1px dashed #cbd5e1; border-radius: 10px; background: #f8fafc; cursor: grab; }
+  .card-dash { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 8px; border: 1px dashed #cbd5e1; border-radius: 10px; background: #f8fafc; cursor: grab; }
   .drag-handle { font-size: 16px; opacity: 0.7; cursor: grab; }
 
 
@@ -85,7 +85,7 @@ import { NotesWidgetComponent } from '../misc-widgets/notes-widget.component';
 
 
   /* CDK list styling */
-  .cdk-drop-list-dragging .card { opacity: .8; }
+  .cdk-drop-list-dragging .card-dash { opacity: .8; }
   .cdk-drag-preview { box-shadow: 0 10px 25px rgba(0,0,0,.15); border-radius: 10px; }
   .cdk-drag-placeholder { opacity: 0.2; }
   `,
@@ -105,7 +105,7 @@ import { NotesWidgetComponent } from '../misc-widgets/notes-widget.component';
       [cdkDropListConnectedTo]="listIds"
       (cdkDropListDropped)="drop($event)">
       <h3>Widgets</h3>
-      <div class="card" *ngFor="let cmp of palette" cdkDrag>
+      <div class="card-dash" *ngFor="let cmp of palette" cdkDrag>
       <span class="drag-handle" cdkDragHandle>⠿</span>
       <span>{{ cmp.name }}</span>
       </div>
